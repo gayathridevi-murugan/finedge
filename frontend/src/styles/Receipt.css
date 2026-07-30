@@ -1,158 +1,239 @@
-.receipt-page {
+.receipt-container {
+  width: 100%;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  padding: 40px 20px;
 }
 
-.receipt-container {
-  background: white;
-  border-radius: 12px;
-  padding: 40px;
+.receipt-content {
   max-width: 600px;
   width: 100%;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  text-align: center;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.1);
+  border-radius: 12px;
+  padding: 40px;
+  animation: slideInUp 0.6s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .receipt-header {
   text-align: center;
-  margin-bottom: 30px;
-  border-bottom: 2px solid #f0f0f0;
-  padding-bottom: 20px;
+  margin-bottom: 40px;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+  padding-bottom: 24px;
+}
+
+.receipt-icon {
+  font-size: 60px;
+  margin-bottom: 12px;
+  display: block;
+  animation: bounce-in 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .receipt-header h1 {
-  margin: 0;
-  color: #333;
-  font-size: 28px;
+  color: #ffffff;
+  font-size: 32px;
+  margin: 0 0 8px 0;
+  font-weight: 600;
 }
 
-.checkmark {
-  font-size: 80px;
-  color: #28a745;
-  margin: 20px 0 0 0;
+.receipt-order {
+  color: #00d4ff;
+  font-size: 16px;
+  margin: 0 0 4px 0;
+  font-weight: 600;
 }
 
-.receipt-content {
-  text-align: left;
-  margin-bottom: 30px;
-}
-
-.receipt-info {
-  background: #f9f9f9;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-}
-
-.receipt-info p {
-  margin: 8px 0;
-  color: #666;
-  font-size: 14px;
-}
-
-.status {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: bold;
+.receipt-date {
+  color: #a0a0a0;
   font-size: 12px;
-}
-
-.status.green {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status.red {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.status.yellow {
-  background: #fff3cd;
-  color: #856404;
+  margin: 0;
 }
 
 .receipt-items {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
-.receipt-items th {
-  background: #f0f0f0;
-  padding: 10px;
+.receipt-items h3 {
+  color: #ffffff;
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.receipt-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  color: #a0a0a0;
+  font-size: 14px;
+}
+
+.receipt-item-row:last-child {
+  border-bottom: none;
+}
+
+.item-details {
   text-align: left;
-  border-bottom: 2px solid #ddd;
-  font-weight: 600;
-  color: #333;
+  flex: 1;
 }
 
-.receipt-items td {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  color: #666;
+.item-name {
+  color: #ffffff;
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.item-qty {
+  color: #a0a0a0;
+  font-size: 12px;
+}
+
+.item-price {
+  color: #00d4ff;
+  font-weight: 600;
+  text-align: right;
 }
 
 .receipt-summary {
-  background: #f9f9f9;
-  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(0, 212, 255, 0.2);
   border-radius: 8px;
-  margin-bottom: 20px;
+  padding: 16px;
+  margin-bottom: 24px;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
-  font-size: 15px;
-  color: #666;
+  margin-bottom: 12px;
+  color: #a0a0a0;
+  font-size: 14px;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
 }
 
 .summary-row.total {
-  font-size: 18px;
-  font-weight: bold;
-  color: #333;
-  border-top: 2px solid #ddd;
-  padding-top: 10px;
-  margin-top: 10px;
+  border-top: 1px solid rgba(0, 212, 255, 0.2);
+  padding-top: 12px;
+  margin-top: 12px;
+  color: #00d4ff;
+  font-weight: 600;
+  font-size: 16px;
 }
 
-.loyalty-box {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
+.loyalty-section {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
   border-radius: 8px;
-  margin-bottom: 20px;
+  padding: 16px;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
-.loyalty-box h3 {
-  margin: 0 0 10px 0;
-  font-size: 18px;
+.loyalty-section h3 {
+  color: #4ade80;
+  font-size: 12px;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.loyalty-box p {
-  margin: 0;
+.points-earned {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.points-amount {
+  color: #4ade80;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.points-label {
+  color: #a0a0a0;
   font-size: 14px;
 }
 
 .receipt-footer {
-  border-top: 2px solid #f0f0f0;
-  padding-top: 20px;
-  color: #999;
+  text-align: center;
+  margin-bottom: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 212, 255, 0.2);
 }
 
 .receipt-footer p {
-  margin: 5px 0;
+  color: #a0a0a0;
   font-size: 14px;
+  margin: 6px 0;
 }
 
-.btn-large {
+.new-checkout-button {
   width: 100%;
-  padding: 15px 20px;
-  font-size: 16px;
-  margin-top: 20px;
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  color: #000;
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+}
+
+.new-checkout-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0, 212, 255, 0.4);
+}
+
+@media (max-width: 768px) {
+  .receipt-content {
+    padding: 24px;
+  }
+
+  .receipt-header h1 {
+    font-size: 24px;
+  }
+
+  .receipt-icon {
+    font-size: 48px;
+  }
 }
