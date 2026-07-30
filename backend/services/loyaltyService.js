@@ -1,12 +1,23 @@
 const { Customer, Loyalty, Receipt } = require('../models');
+const { v4: uuidv4, validate: uuidValidate } = require('uuid');
 
 class LoyaltyService {
   async addLoyaltyPoints(customerId, orderId, points) {
-    let customer = await Customer.findByPk(customerId);
+    let customer;
+
+    // Try to find customer by UUID only if it's a valid UUID format
+    if (customerId && uuidValidate(customerId)) {
+      try {
+        customer = await Customer.findByPk(customerId);
+      } catch (error) {
+        customer = null;
+      }
+    }
 
     if (!customer) {
-      // Create new customer without forcing an ID (let Sequelize generate it)
+      // Create new customer with generated UUID
       customer = await Customer.create({
+        id: uuidv4(),
         name: `Customer ${customerId || 'Unknown'}`,
         email: `customer-${Date.now()}@store.local`,
         loyalty_points: points,
@@ -21,13 +32,15 @@ class LoyaltyService {
     // Store the actual customer ID for loyalty record
     const actualCustomerId = customer.id;
 
-    await Loyalty.create({
-      customer_id: actualCustomerId,
-      order_id: orderId,
-      transaction_type: 'EARNED',
-      points: points,
-      description: `Points earned from order ${orderId}`
-    });
+    if (orderId) {
+      await Loyalty.create({
+        customer_id: actualCustomerId,
+        order_id: orderId,
+        transaction_type: 'EARNED',
+        points: points,
+        description: `Points earned from order ${orderId}`
+      });
+    }
 
     return customer;
   }
@@ -44,14 +57,23 @@ class LoyaltyService {
   }
 
   async getLoyaltyBalance(customerId) {
-    let customer = await Customer.findByPk(customerId);
+    let customer = null;
 
-    // If not found by ID, try finding by email pattern
-    if (!customer && !customerId.includes('-')) {
+    // Try to find customer by UUID only if it's a valid UUID format
+    if (customerId && uuidValidate(customerId)) {
+      try {
+        customer = await Customer.findByPk(customerId);
+      } catch (error) {
+        customer = null;
+      }
+    }
+
+    // If not found by ID, try finding by name pattern
+    if (!customer && customerId) {
       const customers = await Customer.findAll({
         where: { name: { [require('sequelize').Op.like]: `%${customerId}%` } },
         limit: 1
-      });
+      }).catch(() => []);
       if (customers.length > 0) customer = customers[0];
     }
 
