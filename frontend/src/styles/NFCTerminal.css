@@ -1,0 +1,170 @@
+.nfc-terminal-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  padding: 40px 20px;
+  position: relative;
+}
+
+.nfc-header {
+  position: absolute;
+  top: 40px;
+  left: 40px;
+  z-index: 10;
+}
+
+.nfc-header h1 {
+  color: #ffffff;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.nfc-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 600px;
+}
+
+.nfc-stage {
+  width: 100%;
+  text-align: center;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.nfc-stage h2 {
+  color: #ffffff;
+  font-size: 32px;
+  margin: 24px 0 12px 0;
+  font-weight: 600;
+}
+
+.nfc-stage p {
+  color: #a0a0a0;
+  font-size: 16px;
+  margin: 0;
+}
+
+.terminal-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 40px 0;
+  height: 200px;
+}
+
+.nfc-stage.ready .terminal-visual {
+  animation: pulse-ready 2s ease-in-out infinite;
+}
+
+.nfc-icon {
+  font-size: 120px;
+  margin-bottom: 20px;
+}
+
+.nfc-indicator {
+  color: #00d4ff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 16px;
+}
+
+@keyframes pulse-ready {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.nfc-button {
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  color: #000;
+  padding: 18px 48px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  margin-top: 32px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+}
+
+.nfc-button:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 40px rgba(0, 212, 255, 0.4);
+}
+
+.nfc-scanner-animation {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanner-pulse {
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border: 2px solid #00d4ff;
+  border-radius: 50%;
+  animation: scan-pulse 2s ease-out infinite;
+}
+
+.scanner-pulse:nth-child(1) { animation-delay: 0s; }
+.scanner-pulse:nth-child(2) { animation-delay: 0.6s; border-color: rgba(0, 212, 255, 0.7); }
+.scanner-pulse:nth-child(3) { animation-delay: 1.2s; border-color: rgba(0, 212, 255, 0.4); }
+
+@keyframes scan-pulse {
+  from { transform: scale(0.5); opacity: 1; }
+  to { transform: scale(1.5); opacity: 0; }
+}
+
+.nfc-success-icon {
+  font-size: 120px;
+  animation: bounce-in 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0); }
+  50% { transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.identifying-animation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.nfc-footer {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .nfc-stage h2 { font-size: 24px; }
+  .nfc-icon { font-size: 80px; }
+  .nfc-header { top: 20px; left: 20px; }
+  .nfc-header h1 { font-size: 18px; }
+}

@@ -1,0 +1,248 @@
+.checkout-complete-screen {
+  width: 100%;
+  max-width: 700px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  animation: slideIn 0.5s ease-out;
+}
+
+.success-container {
+  width: 100%;
+}
+
+.success-icon {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 40px;
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  animation: scaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0) rotate(-30deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.checkout-complete-screen h2 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.checkout-complete-screen p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 50px;
+  line-height: 1.6;
+}
+
+.success-checklist {
+  max-width: 450px;
+  margin: 0 auto 50px;
+  padding: 30px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(74, 222, 128, 0.05);
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  animation: slideIn 0.4s ease-out backwards;
+}
+
+.checklist-item:nth-child(1) { animation-delay: 0.1s; }
+.checklist-item:nth-child(2) { animation-delay: 0.2s; }
+.checklist-item:nth-child(3) { animation-delay: 0.3s; }
+.checklist-item:nth-child(4) { animation-delay: 0.4s; }
+
+.checklist-item:last-child {
+  margin-bottom: 0;
+}
+
+.checklist-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 14px;
+  font-size: 0.9rem;
+  color: #000;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.checklist-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.order-details {
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 30px;
+  margin-bottom: 40px;
+  text-align: left;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  color: var(--text-secondary);
+}
+
+.detail-value {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.loyalty-info {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.loyalty-icon {
+  font-size: 2rem;
+  margin-right: 20px;
+}
+
+.loyalty-text {
+  text-align: left;
+  flex: 1;
+}
+
+.loyalty-points-earned {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--success);
+  margin: 8px 0;
+}
+
+.loyalty-tier {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.checkout-actions {
+  display: flex;
+  gap: 12px;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+}
+
+.btn-view-receipt {
+  padding: 16px 48px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-view-receipt:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0, 212, 255, 0.4);
+}
+
+.btn-view-receipt:active {
+  transform: translateY(-1px);
+}
+
+.btn-proceed-exit {
+  padding: 14px 40px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-proceed-exit:hover {
+  background: rgba(0, 212, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+  .checkout-complete-screen {
+    padding: 20px;
+  }
+
+  .success-icon {
+    width: 100px;
+    height: 100px;
+    font-size: 3rem;
+  }
+
+  .checkout-complete-screen h2 {
+    font-size: 1.8rem;
+  }
+
+  .success-checklist {
+    padding: 20px;
+    margin-bottom: 30px;
+  }
+
+  .loyalty-info {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .loyalty-text {
+    text-align: center;
+  }
+
+  .btn-view-receipt,
+  .btn-proceed-exit {
+    width: 100%;
+  }
+}
