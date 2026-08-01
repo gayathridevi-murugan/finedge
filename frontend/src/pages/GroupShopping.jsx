@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCheckoutStore } from '../store/checkoutStore';
 import DashboardLayout from '../components/DashboardLayout';
 import apiClient from '../services/api';
@@ -8,353 +8,256 @@ export default function GroupShopping() {
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
   const cartItems = useCheckoutStore((state) => state.cartItems);
 
-  // Group workflow states
-  const [groupSessionId, setGroupSessionId] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [newMemberName, setNewMemberName] = useState('');
-  const [groupStep, setGroupStep] = useState('CREATE'); // CREATE, ASSIGN, SPLIT, PAY, COMPLETE
-  const [splitMethod, setSplitMethod] = useState('equal');
+  // State Management
+  const [groupSessionId, setGroupSessionId] = useState('GRP-' + Math.random().toString(36).substr(2, 9).toUpperCase());
+  const [members, setMembers] = useState([
+    { id: 'host', name: 'You (Host)', status: 'paid', amount: 0, paid: false }
+  ]);
+  const [products, setProducts] = useState(cartItems.map(item => ({
+    ...item,
+    assignedTo: 'host',
+    emoji: item.image || '👕'
+  })));
   const [splitCalculation, setSplitCalculation] = useState({});
-  const [memberPayments, setMemberPayments] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const initializedRef = useRef(false);
 
-  // Create group session
-  const handleCreateGroup = async () => {
-    if (members.length < 2) {
-      setError('Add at least 2 members to continue');
-      return;
+  // Initialize calculations
+  useEffect(() => {
+    if (!initializedRef.current) {
+      calculatePayments();
+      initializedRef.current = true;
     }
+  }, []);
 
-    try {
-      setLoading(true);
-      const response = await apiClient.post('/group-shopping/create', {
-        groupName: `Group-${Date.now()}`,
-        memberCount: members.length
-      });
+  // Calculate payments for all members
+  const calculatePayments = () => {
+    const calculations = {};
 
-      if (response.data.success) {
-        setGroupSessionId(response.data.data.groupSessionId);
+    members.forEach(member => {
+      const memberProducts = products.filter(p => p.assignedTo === member.id);
+      const subtotal = memberProducts.reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0);
+      const sharedAmount = products
+        .filter(p => p.assignedTo === 'shared')
+        .reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0) / members.length;
 
-        // Add members to session
-        await apiClient.post(`/group-shopping/${response.data.data.groupSessionId}/members`, {
-          members: members.map(m => ({ name: m, items: [] }))
-        });
+      const total = subtotal + sharedAmount;
+      const tax = total * 0.1;
+      const grandTotal = total + tax;
 
-        setGroupStep('SPLIT');
-        setError(null);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      calculations[member.id] = {
+        memberId: member.id,
+        memberName: member.name,
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        sharedAmount: parseFloat(sharedAmount.toFixed(2)),
+        tax: parseFloat(tax.toFixed(2)),
+        total: parseFloat(grandTotal.toFixed(2)),
+        paid: member.paid || false,
+        status: member.paid ? 'paid' : 'pending'
+      };
+    });
+
+    setSplitCalculation(calculations);
   };
 
-  // Add member to group
-  const handleAddMember = () => {
-    if (!newMemberName.trim()) return;
-    setMembers([...members, newMemberName]);
-    setNewMemberName('');
-  };
-
-  // Assign products to member
-  const handleAssignProduct = (productId, memberIndex) => {
-    const updatedMembers = [...members];
-    if (!memberPayments[memberIndex]) memberPayments[memberIndex] = [];
-    memberPayments[memberIndex].push(productId);
-    setMemberPayments({ ...memberPayments });
-  };
-
-  // Calculate split
-  const handleCalculateSplit = async () => {
-    if (!groupSessionId) return;
-
-    try {
-      setLoading(true);
-      const response = await apiClient.post(`/group-shopping/${groupSessionId}/calculate-split`, {
-        splitMethod
-      });
-
-      if (response.data.success) {
-        setSplitCalculation(response.data.data.split);
-        setGroupStep('PAY');
-        setError(null);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Process member payment
-  const handleMemberPay = async (memberId, amount) => {
-    if (!groupSessionId) return;
-
-    try {
-      setLoading(true);
-      const response = await apiClient.post(
-        `/group-shopping/${groupSessionId}/member/${memberId}/pay`,
-        {
-          amount,
-          paymentMethod: 'SURFBOARD',
-          surfboardPaymentId: `SB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        }
-      );
-
-      if (response.data.success) {
-        // Update member payment status
-        const updatedSplit = { ...splitCalculation };
-        if (updatedSplit[memberId]) {
-          updatedSplit[memberId].paid = true;
-        }
-        setSplitCalculation(updatedSplit);
-
-        // Check if all paid
-        const allPaid = Object.values(updatedSplit).every(m => m.paid);
-        if (allPaid) {
-          setGroupStep('COMPLETE');
-        }
-
-        setError(null);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Complete group order
-  const handleCompleteGroup = async () => {
-    if (!groupSessionId) return;
-
-    try {
-      setLoading(true);
-      const response = await apiClient.post(`/group-shopping/${groupSessionId}/complete`);
-
-      if (response.data.success) {
-        setError(null);
-        alert('✅ Group order completed successfully!');
-        setTimeout(() => setCurrentScreen('overview'), 2000);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // STEP 1: CREATE GROUP
-  if (groupStep === 'CREATE') {
-    return (
-      <DashboardLayout pageTitle="Group Shopping" pageIcon="👥">
-        <div className="group-shopping-container">
-          <div className="group-step-content">
-            <h2>👥 Add Shopping Members</h2>
-            <p className="step-description">Add members for group shopping</p>
-
-            <div className="form-group">
-              <div className="member-input">
-                <input
-                  type="text"
-                  placeholder="Enter member name"
-                  value={newMemberName}
-                  onChange={(e) => setNewMemberName(e.target.value)}
-                  className="form-input"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddMember()}
-                />
-                <button onClick={handleAddMember} className="btn-add">Add Member</button>
-              </div>
-            </div>
-
-            <div className="members-list">
-              <h4>Members ({members.length})</h4>
-              {members.length === 0 ? (
-                <p className="empty-text">Add at least 2 members to start</p>
-              ) : (
-                <ul>
-                  {members.map((member, idx) => (
-                    <li key={idx}>
-                      <span className="member-badge">{idx + 1}</span>
-                      <span className="member-name">{member}</span>
-                      <button
-                        onClick={() => setMembers(members.filter((_, i) => i !== idx))}
-                        className="btn-remove"
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {error && <div className="error-message">❌ {error}</div>}
-
-            <button
-              onClick={handleCreateGroup}
-              disabled={loading || members.length < 2}
-              className="btn-primary btn-lg"
-            >
-              {loading ? '⏳ Creating...' : '👉 Continue'}
-            </button>
-          </div>
-        </div>
-      </DashboardLayout>
+  // Update product assignment
+  const handleAssignProduct = (productId, memberId) => {
+    const updatedProducts = products.map(p =>
+      p.id === productId ? { ...p, assignedTo: memberId } : p
     );
-  }
+    setProducts(updatedProducts);
 
-  // Calculate totals
-  const groupTotal = Object.values(splitCalculation).reduce((sum, m) => sum + (m.amount || 0), 0);
-  const paidMembers = Object.values(splitCalculation).filter(m => m.paid).length;
-  const pendingMembers = Object.values(splitCalculation).filter(m => !m.paid).length;
+    // Recalculate immediately
+    const updatedMembers = members.map(m => ({
+      ...m,
+      paid: splitCalculation[m.id]?.paid || false
+    }));
+    setMembers(updatedMembers);
+    calculatePayments();
+  };
 
-  // STEP 2-4: SPLIT, PAY, COMPLETE
+  // Handle payment
+  const handlePayment = async (memberId) => {
+    try {
+      setLoading(true);
+      const amount = splitCalculation[memberId]?.total || 0;
+
+      // Simulate payment
+      const updatedMembers = members.map(m =>
+        m.id === memberId ? { ...m, paid: true } : m
+      );
+      setMembers(updatedMembers);
+
+      // Update calculations
+      const updatedCalcs = { ...splitCalculation };
+      updatedCalcs[memberId].paid = true;
+      updatedCalcs[memberId].status = 'paid';
+      setSplitCalculation(updatedCalcs);
+
+      setError(null);
+    } catch (err) {
+      setError('Payment failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if all paid
+  const allPaid = members.every(m => m.paid);
+  const totalAmount = Object.values(splitCalculation).reduce((sum, calc) => sum + calc.total, 0);
+
   return (
-    <DashboardLayout pageTitle="Group Shopping - Payment" pageIcon="👥">
-      <div className="group-shopping-container">
-        {/* PROGRESS BAR */}
-        <div className="group-progress">
-          <div className={`progress-step ${groupStep === 'SPLIT' ? 'active' : 'done'}`}>
-            <div className="step-number">1</div>
-            <div className="step-label">Split Setup</div>
-          </div>
-          <div className={`progress-step ${groupStep === 'PAY' ? 'active' : groupStep === 'COMPLETE' ? 'done' : ''}`}>
-            <div className="step-number">2</div>
-            <div className="step-label">Payments</div>
-          </div>
-          <div className={`progress-step ${groupStep === 'COMPLETE' ? 'active' : ''}`}>
-            <div className="step-number">3</div>
-            <div className="step-label">Complete</div>
+    <DashboardLayout pageTitle="Group Shopping" pageIcon="👥">
+      <div className="group-shopping-premium">
+        {/* Header Card */}
+        <div className="premium-card header-card">
+          <div className="header-top">
+            <div>
+              <h1 className="group-title">👥 Group Shopping</h1>
+              <p className="group-code">Code: {groupSessionId}</p>
+            </div>
+            <div className="qr-section">
+              <div className="qr-placeholder">📱 QR</div>
+            </div>
           </div>
         </div>
 
-        {/* SPLIT SELECTION (if haven't calculated yet) */}
-        {groupStep === 'SPLIT' && Object.keys(splitCalculation).length === 0 && (
-          <div className="group-step-content">
-            <h2>💳 Choose Split Method</h2>
-            <p className="step-description">How should the group total be divided?</p>
-
-            <div className="split-options">
-              <div
-                className={`split-card ${splitMethod === 'equal' ? 'selected' : ''}`}
-                onClick={() => setSplitMethod('equal')}
-              >
-                <div className="split-icon">📊</div>
-                <h3>Equal Split</h3>
-                <p>Divide total equally among all members</p>
-                <div className="split-amount">
-                  ₹{(Object.values(cartItems).reduce((sum, i) => sum + (i.price * i.quantity), 0) / members.length).toLocaleString()}
-                  <span className="per-person">per person</span>
-                </div>
-              </div>
-
-              <div
-                className={`split-card ${splitMethod === 'item-based' ? 'selected' : ''}`}
-                onClick={() => setSplitMethod('item-based')}
-              >
-                <div className="split-icon">🎯</div>
-                <h3>Item-Based Split</h3>
-                <p>Each member pays for their own items</p>
-                <div className="split-amount">
-                  Based on assigned products
-                </div>
-              </div>
-            </div>
-
-            {error && <div className="error-message">❌ {error}</div>}
-
-            <button
-              onClick={handleCalculateSplit}
-              disabled={loading}
-              className="btn-primary btn-lg"
-            >
-              {loading ? '⏳ Calculating...' : '💰 Calculate & Continue'}
-            </button>
-          </div>
-        )}
-
-        {/* PAYMENT TRACKING */}
-        {(groupStep === 'PAY' || groupStep === 'COMPLETE') && (
-          <>
-            {/* SUMMARY */}
-            <div className="group-summary">
-              <div className="summary-stat">
-                <span className="stat-label">Group Total</span>
-                <span className="stat-value">₹{groupTotal.toLocaleString()}</span>
-              </div>
-              <div className="summary-stat">
-                <span className="stat-label">Paid</span>
-                <span className="stat-value paid">{paidMembers} / {members.length}</span>
-              </div>
-              <div className="summary-stat">
-                <span className="stat-label">Pending</span>
-                <span className="stat-value pending">{pendingMembers}</span>
-              </div>
-            </div>
-
-            {/* MEMBER PAYMENT CARDS */}
-            <div className="members-payment-grid">
-              {Object.entries(splitCalculation).map(([memberId, member]) => (
-                <div key={memberId} className={`member-payment-card ${member.paid ? 'paid' : 'pending'}`}>
-                  <div className="card-header">
-                    <h3>{member.memberName}</h3>
-                    <div className={`payment-status ${member.paid ? 'paid' : 'pending'}`}>
-                      {member.paid ? '✅ PAID' : '⏳ PENDING'}
+        <div className="dashboard-grid">
+          {/* Members Panel */}
+          <div className="premium-card members-card">
+            <h2 className="section-title">Members Joined</h2>
+            <div className="members-grid">
+              {members.map(member => (
+                <div key={member.id} className={`member-badge ${member.paid ? 'paid' : 'pending'}`}>
+                  <div className="member-avatar">👤</div>
+                  <div className="member-info">
+                    <p className="member-name">{member.name}</p>
+                    <div className="member-status-badges">
+                      {member.paid ? (
+                        <span className="badge success">✓ Paid</span>
+                      ) : (
+                        <span className="badge pending">⏳ Pending</span>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="card-body">
-                    <div className="amount-box">
-                      <span className="amount-label">Amount Due</span>
-                      <span className="amount-value">₹{member.amount?.toLocaleString() || 0}</span>
-                    </div>
-
-                    <div className="payment-method">
-                      <span>💳 Surfboard Payment</span>
-                    </div>
-                  </div>
-
-                  <div className="card-footer">
-                    {!member.paid && (
-                      <button
-                        onClick={() => handleMemberPay(memberId, member.amount)}
-                        disabled={loading}
-                        className="btn-pay"
-                      >
-                        {loading ? '⏳ Processing...' : 'Pay Now'}
-                      </button>
-                    )}
-                    {member.paid && (
-                      <div className="paid-badge">✅ Payment Verified</div>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
-
-            {error && <div className="error-message">❌ {error}</div>}
-          </>
-        )}
-
-        {/* COMPLETION */}
-        {groupStep === 'COMPLETE' && (
-          <div className="completion-section">
-            <div className="completion-icon">✅</div>
-            <h2>All Payments Received!</h2>
-            <p>All {members.length} members have completed their payments.</p>
-
-            <button
-              onClick={handleCompleteGroup}
-              disabled={loading}
-              className="btn-primary btn-lg"
-            >
-              {loading ? '⏳ Completing...' : '🎉 Complete Order & Return'}
-            </button>
           </div>
-        )}
+
+          {/* Products Panel */}
+          <div className="premium-card products-card">
+            <h2 className="section-title">Products Scanned</h2>
+            <div className="products-list">
+              {products.length === 0 ? (
+                <p className="empty-state">No products added yet</p>
+              ) : (
+                products.map(product => (
+                  <div key={product.id} className="product-row">
+                    <div className="product-info">
+                      <div className="product-emoji">{product.emoji}</div>
+                      <div className="product-details">
+                        <p className="product-name">{product.name}</p>
+                        <p className="product-brand">{product.brand || 'Premium'}</p>
+                      </div>
+                      <div className="product-price">₹{parseFloat(product.price).toLocaleString()}</div>
+                    </div>
+                    <select
+                      className="assignment-dropdown"
+                      value={product.assignedTo}
+                      onChange={(e) => handleAssignProduct(product.id, e.target.value)}
+                    >
+                      {members.map(member => (
+                        <option key={member.id} value={member.id}>
+                          {member.name.split('(')[0].trim()}
+                        </option>
+                      ))}
+                      <option value="shared">Shared</option>
+                    </select>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Payment Summary Panel */}
+          <div className="premium-card payment-summary-card">
+            <h2 className="section-title">Payment Summary</h2>
+            <div className="payment-summary">
+              {members.map(member => {
+                const calc = splitCalculation[member.id];
+                return (
+                  <div key={member.id} className={`summary-row ${calc?.paid ? 'paid' : ''}`}>
+                    <div className="summary-name">
+                      <span className="member-label">{member.name}</span>
+                      <div className="summary-breakdown">
+                        <small>Items: ₹{calc?.subtotal || 0}</small>
+                        {calc?.sharedAmount > 0 && <small>Shared: ₹{calc.sharedAmount}</small>}
+                        <small>Tax: ₹{calc?.tax || 0}</small>
+                      </div>
+                    </div>
+                    <div className="summary-total">
+                      <p className="amount">₹{calc?.total || 0}</p>
+                      {calc?.paid ? (
+                        <span className="badge-small success">✓ Paid</span>
+                      ) : (
+                        <span className="badge-small pending">Pending</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="summary-divider"></div>
+              <div className="summary-grand-total">
+                <p className="label">Grand Total</p>
+                <p className="amount">₹{totalAmount.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Actions Panel */}
+          <div className="premium-card actions-card">
+            <h2 className="section-title">Complete Payment</h2>
+            <div className="payment-actions">
+              {members.map(member => {
+                const calc = splitCalculation[member.id];
+                return (
+                  <div key={member.id} className="payment-button-wrapper">
+                    {calc?.paid ? (
+                      <button className="btn-paid" disabled>
+                        ✓ {member.name.split('(')[0].trim()} - Paid
+                      </button>
+                    ) : (
+                      <button
+                        className="btn-pay"
+                        onClick={() => handlePayment(member.id)}
+                        disabled={loading}
+                      >
+                        💳 Pay ₹{calc?.total || 0}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {allPaid && (
+              <div className="completion-section">
+                <div className="success-badge">✨ All Members Paid</div>
+                <button
+                  className="btn-complete"
+                  onClick={() => setCurrentScreen('exit-verification')}
+                >
+                  🎉 Complete Group Checkout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && <div className="error-message">{error}</div>}
       </div>
     </DashboardLayout>
   );
