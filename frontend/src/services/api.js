@@ -96,4 +96,5 @@ export const simulatorService = {
   getDemoData: () => getDemoData()
 };
 
+export const api = apiClient;
 export default apiClient;

@@ -1,6 +1,8 @@
 const sequelize = require('../config/database');
 const Product = require('./Product');
 const Customer = require('./Customer');
+const Cart = require('./Cart');
+const CartItem = require('./CartItem');
 const Order = require('./Order');
 const OrderItem = require('./OrderItem');
 const Payment = require('./Payment');
@@ -12,8 +14,19 @@ const ExitVerification = require('./ExitVerification');
 const SecurityEvent = require('./SecurityEvent');
 const GroupSession = require('./GroupSession');
 const GroupMember = require('./GroupMember');
+const Merchant = require('./Merchant');
+const Terminal = require('./Terminal');
 
 // Define associations
+Cart.hasMany(CartItem, { foreignKey: 'cart_id', as: 'items' });
+CartItem.belongsTo(Cart, { foreignKey: 'cart_id' });
+
+CartItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
+Product.hasMany(CartItem, { foreignKey: 'product_id', as: 'cart_items' });
+
+Cart.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
+Customer.hasMany(Cart, { foreignKey: 'customer_id', as: 'carts' });
+
 Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'items' });
 OrderItem.belongsTo(Order, { foreignKey: 'order_id' });
 
@@ -53,10 +66,16 @@ GroupMember.belongsTo(GroupSession, { foreignKey: 'group_session_id' });
 GroupMember.belongsTo(Customer, { foreignKey: 'customer_id', as: 'customer' });
 Customer.hasMany(GroupMember, { foreignKey: 'customer_id', as: 'group_memberships' });
 
+// Merchant and Terminal associations
+Merchant.hasMany(Terminal, { foreignKey: 'merchant_id', as: 'terminals' });
+Terminal.belongsTo(Merchant, { foreignKey: 'merchant_id', as: 'merchant' });
+
 module.exports = {
   sequelize,
   Product,
   Customer,
+  Cart,
+  CartItem,
   Order,
   OrderItem,
   Payment,
@@ -67,5 +86,7 @@ module.exports = {
   ExitVerification,
   SecurityEvent,
   GroupSession,
-  GroupMember
+  GroupMember,
+  Merchant,
+  Terminal
 };

@@ -1,23 +1,23 @@
 .checkout {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-bg-primary);
   padding: 20px;
 }
 
 .checkout .header {
-  background: white;
+  background: var(--color-bg-secondary);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .btn-back {
-  background: #f0f0f0;
-  color: #333;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
   padding: 10px 20px;
   border-radius: 6px;
   border: none;
@@ -27,12 +27,12 @@
 }
 
 .btn-back:hover {
-  background: #e0e0e0;
+  background: var(--color-bg-hover);
 }
 
 .checkout h1 {
   margin: 0;
-  color: #667eea;
+  color: var(--color-primary);
   flex: 1;
 }
 
@@ -42,14 +42,14 @@
 }
 
 .section {
-  background: white;
+  background: var(--color-bg-secondary);
   border-radius: 12px;
   padding: 30px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .section h2 {
-  color: #333;
+  color: var(--color-text-primary);
   margin-bottom: 20px;
   font-size: 22px;
 }
@@ -61,23 +61,23 @@
 }
 
 .cart-table th {
-  background: #f9f9f9;
+  background: var(--color-bg-tertiary);
   padding: 12px;
   text-align: left;
-  border-bottom: 2px solid #ddd;
+  border-bottom: 2px solid var(--color-border);
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .cart-table td {
   padding: 12px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-light);
 }
 
 .summary {
   text-align: right;
   padding-top: 20px;
-  border-top: 2px solid #ddd;
+  border-top: 2px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -85,7 +85,7 @@
 
 .summary strong {
   font-size: 20px;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .btn {
@@ -98,14 +98,14 @@
 }
 
 .btn-primary {
-  background: #667eea;
-  color: white;
+  background: var(--color-primary);
+  color: var(--color-text-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #5568d3;
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 
 .btn-primary:disabled {

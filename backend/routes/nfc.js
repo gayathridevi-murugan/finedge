@@ -24,10 +24,22 @@ router.post('/scan', asyncHandler(async (req, res) => {
       product: {
         id: product.id,
         name: product.name,
+        brand: product.brand,
         category: product.category,
+        subcategory: product.subcategory,
         price: parseFloat(product.price),
+        original_price: product.original_price ? parseFloat(product.original_price) : null,
         description: product.description,
-        stock: product.stock
+        size: product.size,
+        color: product.color,
+        material: product.material,
+        care_instructions: product.care_instructions,
+        authenticity_verified: product.authenticity_verified,
+        warranty_months: product.warranty_months,
+        rating: product.rating,
+        review_count: product.review_count,
+        stock: product.stock,
+        sku: product.sku
       },
       scan_count: nfcTag.scan_count,
       scanned_at: nfcTag.last_scanned_at
@@ -78,6 +90,28 @@ router.get('/validate/:tag_id', asyncHandler(async (req, res) => {
     data: {
       tag_id,
       valid: isValid
+    }
+  });
+}));
+
+router.get('/available', asyncHandler(async (req, res) => {
+  const { NFCTag } = require('../models');
+  const tags = await NFCTag.findAll({
+    where: { status: 'ACTIVE' },
+    limit: 50,
+    attributes: ['id', 'tag_id', 'product_id']
+  });
+
+  res.json({
+    success: true,
+    data: {
+      message: 'Available NFC tags',
+      available_tags: tags.map(t => ({
+        id: t.id,
+        tag_id: t.tag_id,
+        product_id: t.product_id
+      })),
+      total: tags.length
     }
   });
 }));

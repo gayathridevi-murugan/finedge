@@ -15,7 +15,7 @@
 }
 
 .cart-header h1 {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 36px;
   margin: 0 0 8px 0;
   font-weight: 600;
@@ -64,7 +64,7 @@
 }
 
 .item-name {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 16px;
   margin: 0 0 4px 0;
   font-weight: 500;

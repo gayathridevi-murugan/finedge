@@ -1,40 +1,11 @@
-const { Product, NFCTag } = require('../models');
-
-const DEMO_PRODUCTS = {
-  'DEMO_0001': { name: 'Organic Milk 1L', price: 3.99, category: 'Dairy' },
-  'DEMO_0002': { name: 'Whole Wheat Bread', price: 2.50, category: 'Bakery' },
-  'DEMO_0003': { name: 'Butter 250g', price: 4.50, category: 'Dairy' },
-  'DEMO_0004': { name: 'Apple Juice 500ml', price: 2.99, category: 'Beverages' },
-  'DEMO_0005': { name: 'Cheddar Cheese', price: 5.99, category: 'Dairy' },
-  'DEMO_0006': { name: 'Eggs (12 pack)', price: 3.49, category: 'Dairy' },
-  'DEMO_0007': { name: 'Greek Yogurt 500g', price: 4.29, category: 'Dairy' },
-  'DEMO_0008': { name: 'Tomato Soup', price: 1.99, category: 'Pantry' }
-};
+const { Product, NFCTag, SecurityTag } = require('../models');
 
 class NFCService {
   async scanNFCTag(tagId) {
     let nfcTag = await NFCTag.findOne({ where: { tag_id: tagId } });
 
     if (!nfcTag) {
-      if (!DEMO_PRODUCTS[tagId]) {
-        throw new Error(`NFC tag not found: ${tagId}`);
-      }
-
-      const product = await Product.create({
-        name: DEMO_PRODUCTS[tagId].name,
-        category: DEMO_PRODUCTS[tagId].category,
-        price: DEMO_PRODUCTS[tagId].price,
-        stock: 100
-      });
-
-      nfcTag = await NFCTag.create({
-        tag_id: tagId,
-        product_id: product.id,
-        status: 'ACTIVE',
-        scan_count: 1
-      });
-
-      return { nfcTag, product };
+      throw new Error(`NFC tag not found: ${tagId}. Please ensure the product is registered in the system.`);
     }
 
     nfcTag.scan_count = (nfcTag.scan_count || 0) + 1;
@@ -42,6 +13,27 @@ class NFCService {
     await nfcTag.save();
 
     const product = await Product.findByPk(nfcTag.product_id);
+    if (!product) {
+      throw new Error(`Product not found for NFC tag: ${tagId}`);
+    }
+
+    // Ensure SecurityTag exists for this product
+    const existingSecurityTag = await SecurityTag.findOne({
+      where: { product_id: nfcTag.product_id }
+    });
+
+    if (!existingSecurityTag) {
+      try {
+        await SecurityTag.create({
+          tag_id: nfcTag.tag_id,
+          product_id: nfcTag.product_id,
+          status: 'ACTIVE'
+        });
+      } catch (error) {
+        // SecurityTag creation failed, but continue
+      }
+    }
+
     return { nfcTag, product };
   }
 

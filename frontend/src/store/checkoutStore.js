@@ -6,6 +6,7 @@ export const useCheckoutStore = create((set) => ({
   demoMode: null,
 
   // Cart and order data
+  sessionId: null,
   cartId: null,
   cartItems: [],
   cartTotal: 0,
@@ -15,6 +16,7 @@ export const useCheckoutStore = create((set) => ({
   // Payment state
   paymentStatus: null,
   paymentAmount: 0,
+  splitPayment: null,
 
   // Receipt and loyalty
   receipt: null,
@@ -38,12 +40,14 @@ export const useCheckoutStore = create((set) => ({
   // Actions
   setCurrentScreen: (screen) => set({ currentScreen: screen }),
   setDemoMode: (mode) => set({ demoMode: mode }),
+  setSessionId: (sessionId) => set({ sessionId }),
   setCartId: (cartId) => set({ cartId }),
   setCartItems: (items) => set({ cartItems: items }),
   setCartTotal: (total) => set({ cartTotal: total }),
   setOrderId: (orderId) => set({ orderId }),
   setOrderNumber: (number) => set({ orderNumber: number }),
   setPaymentStatus: (status) => set({ paymentStatus: status }),
+  setSplitPayment: (splitData) => set({ splitPayment: splitData }),
   setReceipt: (receipt) => set({ receipt }),
   setLoyaltyPoints: (points, tier) => set({ loyaltyPointsEarned: points, loyaltyTier: tier }),
   setExitStatus: (status, gate, unpaid) => set({ exitStatus: status, gateStatus: gate, unpaidItems: unpaid }),
@@ -55,6 +59,7 @@ export const useCheckoutStore = create((set) => ({
   reset: () => set({
     currentScreen: 'welcome',
     demoMode: null,
+    sessionId: null,
     cartId: null,
     cartItems: [],
     cartTotal: 0,
@@ -62,6 +67,7 @@ export const useCheckoutStore = create((set) => ({
     orderNumber: null,
     paymentStatus: null,
     paymentAmount: 0,
+    splitPayment: null,
     receipt: null,
     loyaltyPointsEarned: 0,
     loyaltyTier: 'SILVER',

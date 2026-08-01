@@ -4,35 +4,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  background: var(--color-bg-primary);
   padding: 40px 20px;
 }
 
 .receipt-content {
   max-width: 600px;
   width: 100%;
-  background: rgba(0, 212, 255, 0.05);
-  border: 1px solid rgba(0, 212, 255, 0.1);
+  background: var(--color-info-bg-light);
+  border: 1px solid var(--color-info-bg-light);
   border-radius: 12px;
   padding: 40px;
-  animation: slideInUp 0.6s ease-out;
 }
 
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 .receipt-header {
   text-align: center;
   margin-bottom: 40px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+  border-bottom: 1px solid var(--color-info-bg-strong);
   padding-bottom: 24px;
 }
 
@@ -40,39 +29,25 @@
   font-size: 60px;
   margin-bottom: 12px;
   display: block;
-  animation: bounce-in 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-@keyframes bounce-in {
-  0% {
-    opacity: 0;
-    transform: scale(0);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
 
 .receipt-header h1 {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 32px;
   margin: 0 0 8px 0;
   font-weight: 600;
 }
 
 .receipt-order {
-  color: #00d4ff;
+  color: var(--color-info);
   font-size: 16px;
   margin: 0 0 4px 0;
   font-weight: 600;
 }
 
 .receipt-date {
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-size: 12px;
   margin: 0;
 }
@@ -82,7 +57,7 @@
 }
 
 .receipt-items h3 {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-size: 14px;
   margin: 0 0 16px 0;
   text-transform: uppercase;
@@ -94,8 +69,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
-  color: #a0a0a0;
+  border-bottom: 1px solid var(--color-info-bg-light);
+  color: var(--color-text-tertiary);
   font-size: 14px;
 }
 
@@ -109,26 +84,26 @@
 }
 
 .item-name {
-  color: #ffffff;
+  color: var(--color-text-primary);
   font-weight: 500;
   margin-bottom: 4px;
   display: block;
 }
 
 .item-qty {
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-size: 12px;
 }
 
 .item-price {
-  color: #00d4ff;
+  color: var(--color-info);
   font-weight: 600;
   text-align: right;
 }
 
 .receipt-summary {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(0, 212, 255, 0.2);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-info-bg-strong);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 24px;
@@ -138,7 +113,7 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 12px;
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-size: 14px;
 }
 
@@ -147,17 +122,17 @@
 }
 
 .summary-row.total {
-  border-top: 1px solid rgba(0, 212, 255, 0.2);
+  border-top: 1px solid var(--color-info-bg-strong);
   padding-top: 12px;
   margin-top: 12px;
-  color: #00d4ff;
+  color: var(--color-info);
   font-weight: 600;
   font-size: 16px;
 }
 
 .loyalty-section {
-  background: rgba(74, 222, 128, 0.1);
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: var(--color-success-bg-light);
+  border: 1px solid var(--color-success-bg-medium);
   border-radius: 8px;
   padding: 16px;
   margin-bottom: 24px;
@@ -165,7 +140,7 @@
 }
 
 .loyalty-section h3 {
-  color: #4ade80;
+  color: var(--color-success);
   font-size: 12px;
   margin: 0 0 12px 0;
   text-transform: uppercase;
@@ -180,13 +155,13 @@
 }
 
 .points-amount {
-  color: #4ade80;
+  color: var(--color-success);
   font-size: 28px;
   font-weight: 700;
 }
 
 .points-label {
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-size: 14px;
 }
 
@@ -194,19 +169,19 @@
   text-align: center;
   margin-bottom: 24px;
   padding-top: 24px;
-  border-top: 1px solid rgba(0, 212, 255, 0.2);
+  border-top: 1px solid var(--color-info-bg-strong);
 }
 
 .receipt-footer p {
-  color: #a0a0a0;
+  color: var(--color-text-tertiary);
   font-size: 14px;
   margin: 6px 0;
 }
 
 .new-checkout-button {
   width: 100%;
-  background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
-  color: #000;
+  background: linear-gradient(135deg, var(--color-info) 0%, var(--color-info) 100%);
+  color: var(--color-text-primary);
   padding: 16px;
   font-size: 14px;
   font-weight: 700;
@@ -216,12 +191,12 @@
   text-transform: uppercase;
   letter-spacing: 2px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 .new-checkout-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 15px 40px rgba(0, 212, 255, 0.4);
+  box-shadow: var(--shadow-xl);
 }
 
 @media (max-width: 768px) {

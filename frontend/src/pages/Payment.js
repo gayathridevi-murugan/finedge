@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useCheckoutStore } from '../store/checkoutStore';
-import { processPayment, createOrderFromCart } from '../services/api';
+import { api, processPayment, createOrderFromCart } from '../services/api';
+import DashboardLayout from '../components/DashboardLayout';
 import '../styles/Payment.css';
 
 export default function Payment() {
   const cartId = useCheckoutStore((state) => state.cartId);
   const cartTotal = useCheckoutStore((state) => state.cartTotal);
+  const cartItems = useCheckoutStore((state) => state.cartItems);
+  const orderId = useCheckoutStore((state) => state.orderId);
+  const orderNumber = useCheckoutStore((state) => state.orderNumber);
   const demoMode = useCheckoutStore((state) => state.demoMode);
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
   const setOrderId = useCheckoutStore((state) => state.setOrderId);
@@ -13,65 +17,49 @@ export default function Payment() {
   const setPaymentStatus = useCheckoutStore((state) => state.setPaymentStatus);
   const setError = useCheckoutStore((state) => state.setError);
 
-  const [paymentStage, setPaymentStage] = useState('review');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const taxRate = 0.1;
-  const tax = parseFloat((cartTotal * taxRate).toFixed(2));
-  const finalTotal = parseFloat((cartTotal + tax).toFixed(2));
+  const safeCartTotal = parseFloat(cartTotal || 0);
+  const tax = parseFloat((safeCartTotal * taxRate).toFixed(2));
+  const finalTotal = parseFloat((safeCartTotal + tax).toFixed(2));
 
   const handlePayNow = async () => {
     try {
       setIsProcessing(true);
-      setPaymentStage('processing');
 
-      // Create order
-      const orderResponse = await createOrderFromCart(cartId, null);
-      const orderId = orderResponse.data.data.order.id;
-      const orderNumber = orderResponse.data.data.order.order_number;
+      let finalOrderId = orderId;
+      let finalOrderNumber = orderNumber;
 
-      setOrderId(orderId);
-      setOrderNumber(orderNumber);
-
-      // Process payment
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Simulate based on demo mode
-      let isSuccess = true;
-      if (demoMode === 'payment-failure') {
-        isSuccess = false;
-      } else if (demoMode === 'unpaid-item') {
-        // For unpaid-item demo, we process payment for only partial items
-        isSuccess = true;
-      } else {
-        isSuccess = true;
+      // Create order only if it doesn't exist
+      if (!finalOrderId) {
+        try {
+          const orderResponse = await createOrderFromCart(cartId, null);
+          finalOrderId = orderResponse.data.data.order.id;
+          finalOrderNumber = orderResponse.data.data.order.order_number;
+          setOrderId(finalOrderId);
+          setOrderNumber(finalOrderNumber);
+        } catch (orderError) {
+          console.warn('Could not create order from API, using demo mode');
+          finalOrderId = 'ORD-' + Math.random().toString(36).substr(2, 9);
+          finalOrderNumber = 'ORD-' + Date.now();
+        }
       }
 
-      if (isSuccess) {
-        const paymentResponse = await processPayment(orderId, finalTotal, 'CREDIT_CARD');
-        setPaymentStatus(paymentResponse.data.data.payment.status);
-        setPaymentStage('success');
+      // Demo mode: simulate successful payment
+      setPaymentStatus('SUCCESS');
 
-        // Auto-transition
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        setCurrentScreen('checkout-complete');
-      } else {
-        setPaymentStatus('FAILED');
-        setPaymentStage('failed');
-        setError('Payment declined. Please try another payment method.');
-      }
+      // Navigate directly to payment success page (NO ANIMATIONS)
+      setOrderId(finalOrderId);
+      setOrderNumber(finalOrderNumber);
+      setCurrentScreen('payment-success');
+
     } catch (error) {
       console.error('Payment error:', error);
       setPaymentStatus('FAILED');
-      setPaymentStage('failed');
       setError(error.message || 'Payment processing failed');
-    } finally {
       setIsProcessing(false);
     }
-  };
-
-  const handleRetry = () => {
-    setPaymentStage('review');
   };
 
   const handleBack = () => {
@@ -79,79 +67,70 @@ export default function Payment() {
   };
 
   return (
-    <div className="payment-container">
-      <button className="back-button" onClick={handleBack}>
-        ← Back
-      </button>
+    <DashboardLayout pageTitle="Payment" pageIcon="💳">
+      <div className="payment-container">
+        <button className="back-button" onClick={handleBack}>
+          ← Back
+        </button>
 
-      <div className="payment-content">
-        {paymentStage === 'review' && (
-          <>
-            <h1>Order Summary</h1>
-            <div className="payment-summary">
-              <div className="summary-item">
-                <span>Subtotal</span>
-                <span>₹{cartTotal.toFixed(2)}</span>
-              </div>
-              <div className="summary-item">
-                <span>Tax</span>
-                <span>₹{tax.toFixed(2)}</span>
-              </div>
-              <div className="summary-item total">
-                <span>Total</span>
-                <span className="total-amount">₹{finalTotal.toFixed(2)}</span>
-              </div>
-            </div>
+        <div className="payment-content">
+          <h1>Order Summary</h1>
 
-            <div className="payment-method">
-              <h3>Payment Method</h3>
-              <div className="method-selected">
-                <span>💳 Credit Card</span>
+          <div className="payment-items">
+            <h3>Items Purchased</h3>
+            {cartItems && cartItems.length > 0 ? (
+              <div className="items-list">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="payment-item">
+                    <div className="item-name-brand">
+                      <strong>{item.name}</strong>
+                      {item.brand && <span> • {item.brand}</span>}
+                    </div>
+                    <div className="item-qty-price">
+                      <span>Qty: {item.quantity}</span>
+                      <span>₹{(item.price * item.quantity).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-
-            <button
-              className="pay-button"
-              onClick={handlePayNow}
-              disabled={isProcessing}
-            >
-              {isProcessing ? 'PROCESSING...' : 'PAY NOW'}
-            </button>
-          </>
-        )}
-
-        {paymentStage === 'processing' && (
-          <div className="payment-stage processing">
-            <div className="payment-animation">
-              <div className="processor-spinner"></div>
-            </div>
-            <h2>Processing Payment...</h2>
-            <p>Please wait while we process your transaction</p>
+            ) : (
+              <p>No items in cart</p>
+            )}
           </div>
-        )}
 
-        {paymentStage === 'success' && (
-          <div className="payment-stage success">
-            <div className="success-icon">✓</div>
-            <h2>Payment Successful</h2>
-            <p>Your payment has been processed</p>
-            <div className="success-details">
-              <p>Redirecting to checkout...</p>
+          <div className="payment-summary">
+            <div className="summary-item">
+              <span>Subtotal</span>
+              <span>₹{safeCartTotal.toFixed(2)}</span>
+            </div>
+            <div className="summary-item">
+              <span>Tax</span>
+              <span>₹{tax.toFixed(2)}</span>
+            </div>
+            <div className="summary-item total">
+              <span>Total</span>
+              <span className="total-amount">₹{finalTotal.toFixed(2)}</span>
             </div>
           </div>
-        )}
 
-        {paymentStage === 'failed' && (
-          <div className="payment-stage failed">
-            <div className="failed-icon">✕</div>
-            <h2>Payment Failed</h2>
-            <p>Your payment could not be processed</p>
-            <button className="retry-button" onClick={handleRetry}>
-              TRY AGAIN
-            </button>
+          <div className="payment-method">
+            <h3>Payment Method</h3>
+            <div className="method-selected">
+              <span>💳 Credit Card</span>
+              <span className="method-note">Demo Mode - Simulated Payment</span>
+            </div>
           </div>
-        )}
+
+          <button
+            className="pay-button"
+            onClick={handlePayNow}
+            disabled={isProcessing}
+          >
+            {isProcessing ? 'PROCESSING...' : 'PAY NOW'}
+          </button>
+
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

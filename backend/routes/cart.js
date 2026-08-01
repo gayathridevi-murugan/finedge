@@ -5,7 +5,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 
 router.post('/create', asyncHandler(async (req, res) => {
   const { customer_id } = req.body;
-  const cart = cartService.createCart(customer_id || null);
+  const cart = await cartService.createCart(customer_id || null);
 
   res.status(201).json({
     success: true,
@@ -21,7 +21,7 @@ router.post('/create', asyncHandler(async (req, res) => {
 
 router.get('/:cart_id', asyncHandler(async (req, res) => {
   const { cart_id } = req.params;
-  const cart = cartService.getCart(cart_id);
+  const cart = await cartService.getCart(cart_id);
 
   res.json({
     success: true,
@@ -48,7 +48,7 @@ router.post('/:cart_id/add', asyncHandler(async (req, res) => {
 
   let updatedCart;
   for (const product of products) {
-    updatedCart = cartService.addItemToCart(
+    updatedCart = await cartService.addItemToCart(
       cart_id,
       product.product_id,
       product.quantity || 1
@@ -77,7 +77,7 @@ router.post('/add', asyncHandler(async (req, res) => {
     });
   }
 
-  const updatedCart = cartService.addItemToCart(cart_id, product_id, quantity || 1);
+  const updatedCart = await cartService.addItemToCart(cart_id, product_id, quantity || 1);
 
   res.json({
     success: true,
@@ -101,7 +101,7 @@ router.post('/remove', asyncHandler(async (req, res) => {
     });
   }
 
-  const updatedCart = cartService.removeItemFromCart(cart_id, product_id);
+  const updatedCart = await cartService.removeItemFromCart(cart_id, product_id);
 
   res.json({
     success: true,
