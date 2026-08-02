@@ -114,4 +114,52 @@ router.post('/remove', asyncHandler(async (req, res) => {
   });
 }));
 
+router.post('/:cart_id/update-quantity', asyncHandler(async (req, res) => {
+  const { cart_id } = req.params;
+  const { product_id, quantity } = req.body;
+
+  if (!cart_id || !product_id || !quantity) {
+    return res.status(400).json({
+      success: false,
+      error: { message: 'cart_id, product_id, and quantity are required' }
+    });
+  }
+
+  const updatedCart = await cartService.updateItemQuantity(cart_id, product_id, quantity);
+
+  res.json({
+    success: true,
+    data: {
+      message: 'Item quantity updated',
+      cart_id: updatedCart.id,
+      items: updatedCart.items,
+      total_amount: updatedCart.total_amount
+    }
+  });
+}));
+
+router.post('/:cart_id/remove', asyncHandler(async (req, res) => {
+  const { cart_id } = req.params;
+  const { product_id } = req.body;
+
+  if (!cart_id || !product_id) {
+    return res.status(400).json({
+      success: false,
+      error: { message: 'cart_id and product_id are required' }
+    });
+  }
+
+  const updatedCart = await cartService.removeItemFromCart(cart_id, product_id);
+
+  res.json({
+    success: true,
+    data: {
+      message: 'Item removed from cart',
+      cart_id: updatedCart.id,
+      items: updatedCart.items,
+      total_amount: updatedCart.total_amount
+    }
+  });
+}));
+
 module.exports = router;

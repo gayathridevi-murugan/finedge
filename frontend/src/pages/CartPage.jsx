@@ -5,13 +5,39 @@ import apiClient from '../services/api';
 import '../styles/CartPage.css';
 
 export default function CartPage() {
-  const cartId = useCheckoutStore((state) => state.cartId);
-  const cartItems = useCheckoutStore((state) => state.cartItems);
-  const cartTotal = useCheckoutStore((state) => state.cartTotal);
-  const setCartItems = useCheckoutStore((state) => state.setCartItems);
-  const setCartTotal = useCheckoutStore((state) => state.setCartTotal);
+  const shoppingMode = useCheckoutStore((state) => state.shoppingMode);
+
+  // Smart Shopping cart
+  const smartCartId = useCheckoutStore((state) => state.smartShoppingCartId);
+  const smartCartItems = useCheckoutStore((state) => state.smartShoppingCartItems);
+  const smartCartTotal = useCheckoutStore((state) => state.smartShoppingCartTotal);
+  const setSmartCartItems = useCheckoutStore((state) => state.setSmartShoppingCartItems);
+  const setSmartCartTotal = useCheckoutStore((state) => state.setSmartShoppingCartTotal);
+
+  // NFC Self Checkout cart
+  const nfcCartId = useCheckoutStore((state) => state.nfcSelfCheckoutCartId);
+  const nfcCartItems = useCheckoutStore((state) => state.nfcSelfCheckoutCartItems);
+  const nfcCartTotal = useCheckoutStore((state) => state.nfcSelfCheckoutCartTotal);
+  const setNFCCartItems = useCheckoutStore((state) => state.setNFCSelfCheckoutCartItems);
+  const setNFCCartTotal = useCheckoutStore((state) => state.setNFCSelfCheckoutCartTotal);
+
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
   const [quantities, setQuantities] = useState({});
+
+  // Determine which mode and use appropriate cart
+  const isSmartShopping = shoppingMode === 'smart-shopping';
+  const isNFCSelfCheckout = shoppingMode === 'nfc-self-checkout';
+
+  const cartId = isSmartShopping ? smartCartId : nfcCartId;
+  const cartItems = isSmartShopping ? smartCartItems : nfcCartItems;
+  const cartTotal = isSmartShopping ? smartCartTotal : nfcCartTotal;
+  const setCartItems = isSmartShopping ? setSmartCartItems : setNFCCartItems;
+  const setCartTotal = isSmartShopping ? setSmartCartTotal : setNFCCartTotal;
+
+  // Determine which page to return to (smart-shopping or nfc-self-checkout)
+  const returnScreen = shoppingMode === 'smart-shopping' ? 'smart-shopping' :
+                       shoppingMode === 'nfc-self-checkout' ? 'nfc-self-checkout' :
+                       'nfc-self-checkout';
 
   // Load cart data from backend on mount - only if cart is empty
   useEffect(() => {
@@ -38,10 +64,10 @@ export default function CartPage() {
   const handleQuantityChange = async (itemId, qty) => {
     if (qty < 1) return;
     const newItems = cartItems.map(item =>
-      item.id === itemId ? { ...item, quantity: qty } : item
+      item.id === itemId ? { ...item, quantity: parseInt(qty) || 1 } : item
     );
     setCartItems(newItems);
-    const newTotal = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const newTotal = newItems.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
     setCartTotal(newTotal);
 
     // Persist to backend
@@ -78,12 +104,18 @@ export default function CartPage() {
   const subtotal = cartTotal;
   const tax = Math.round(subtotal * 0.1 * 100) / 100;
   const total = subtotal + tax;
+  const [removingId, setRemovingId] = useState(null);
+
+  const handleDeleteClick = async (itemId) => {
+    setRemovingId(itemId);
+    setTimeout(() => {
+      handleRemoveItem(itemId);
+      setRemovingId(null);
+    }, 300);
+  };
 
   return (
     <DashboardLayout pageTitle="Shopping Cart" pageIcon="🛒">
-      <button className="back-button" onClick={() => setCurrentScreen('smart-shopping')}>
-        ← Back
-      </button>
       <div className="cart-page">
         <div className="cart-layout">
           {/* CART ITEMS */}
@@ -101,14 +133,14 @@ export default function CartPage() {
                     const itemQty = parseInt(item.quantity) || 1;
                     const itemTotal = itemPrice * itemQty;
                     return (
-                    <div key={item.id} className="cart-item-row">
-                      <div className="item-image">{item.image || '👕'}</div>
+                    <div key={item.id} className={`cart-item-row ${removingId === item.id ? 'removing' : ''}`}>
+                      <div className="item-image">{item.image}</div>
                       <div className="item-info">
                         <h4>{item.name}</h4>
-                        {item.brand && <p className="item-brand">👔 {item.brand}</p>}
+                        {item.brand && <p className="item-brand">{item.brand}</p>}
                         <div className="item-details">
-                          {item.size && <span className="item-detail">📏 {item.size}</span>}
-                          {item.color && <span className="item-detail">🎨 {item.color}</span>}
+                          {item.size && <span className="item-detail">Size: {item.size}</span>}
+                          {item.color && <span className="item-detail">Color: {item.color}</span>}
                         </div>
                       </div>
                       <div className="item-controls">
@@ -134,10 +166,11 @@ export default function CartPage() {
                       </div>
                       <div className="item-price">₹{itemTotal.toLocaleString()}</div>
                       <button
-                        className="remove-btn"
-                        onClick={() => handleRemoveItem(item.id)}
+                        className="delete-btn"
+                        onClick={() => handleDeleteClick(item.id)}
+                        title="Delete item"
                       >
-                        🗑️
+                        Delete
                       </button>
                     </div>
                     );
@@ -146,7 +179,7 @@ export default function CartPage() {
               </>
             ) : (
               <div className="empty-cart">
-                <div className="empty-icon">🛒</div>
+                <div className="empty-icon">⊘</div>
                 <h3>Your cart is empty</h3>
                 <p>Start shopping by scanning products with NFC</p>
               </div>
@@ -174,20 +207,11 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* LOYALTY */}
-              <div className="loyalty-box">
-                <span className="loyalty-icon">⭐</span>
-                <div className="loyalty-info">
-                  <p className="loyalty-label">Loyalty Points</p>
-                  <p className="loyalty-points">Earn {Math.floor(total / 10)} points</p>
-                </div>
-              </div>
-
               {/* ACTION BUTTONS */}
               <div className="summary-actions">
                 <button
                   className="action-btn secondary"
-                  onClick={() => setCurrentScreen('overview')}
+                  onClick={() => setCurrentScreen(returnScreen)}
                 >
                   Continue Shopping
                 </button>

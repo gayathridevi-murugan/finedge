@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 const Order = sequelize.define('Order', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  order_number: { type: DataTypes.STRING(50), allowNull: false, unique: true },
+  order_number: { type: DataTypes.STRING(50), allowNull: false, unique: 'order_number_unique' },
   customer_id: DataTypes.UUID,
   total_amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   payment_status: { type: DataTypes.ENUM('PENDING', 'PAID', 'FAILED'), defaultValue: 'PENDING' },

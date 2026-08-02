@@ -51,9 +51,9 @@ router.get('/metrics', async (req, res) => {
 
     try {
       const scannedResult = await sequelize.query(`
-        SELECT COUNT(DISTINCT "nfc_tag_id") as count
-        FROM "nfctags"
-        WHERE "createdAt" >= :today
+        SELECT COUNT(DISTINCT "product_id") as count
+        FROM "nfc_tags"
+        WHERE "last_scanned_at" IS NOT NULL AND "last_scanned_at" >= :today
       `, {
         replacements: { today },
         type: sequelize.QueryTypes.SELECT
@@ -62,7 +62,7 @@ router.get('/metrics', async (req, res) => {
     } catch (e) { console.warn('Products scanned count failed:', e.message); }
 
     try {
-      pendingPayments = await Payment.count();
+      pendingPayments = await Payment.count({ where: { status: 'PENDING' } });
     } catch (e) { console.warn('Pending payments count failed:', e.message); }
 
     try {
@@ -180,11 +180,11 @@ router.get('/top-products', async (req, res) => {
           'id',
           'name',
           'price',
-          [sequelize.fn('COUNT', sequelize.col('OrderItems.id')), 'sales_count']
+          [sequelize.fn('COUNT', sequelize.col('order_items.id')), 'sales_count']
         ],
-        include: [{ model: OrderItem, attributes: [], required: false }],
+        include: [{ model: OrderItem, attributes: [], as: 'order_items', required: false }],
         group: ['Product.id'],
-        order: [[sequelize.fn('COUNT', sequelize.col('OrderItems.id')), 'DESC']],
+        order: [[sequelize.fn('COUNT', sequelize.col('order_items.id')), 'DESC']],
         limit: 10,
         raw: true,
         subQuery: false

@@ -5,8 +5,10 @@ import '../styles/Payment.css';
 
 export default function PaymentCancel() {
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
+  const storeOrderId = useCheckoutStore((state) => state.orderId);
   const [retrying, setRetrying] = useState(false);
-  const orderId = new URLSearchParams(window.location.search).get('order_id');
+  // Use order ID from store (state-based routing)
+  const orderId = storeOrderId;
 
   const handleRetryPayment = () => {
     setRetrying(true);

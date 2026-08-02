@@ -68,16 +68,10 @@ class PaymentService {
           return await this.failPayment(orderId, response.data.message || 'Payment declined');
         }
       } else {
-        // FALLBACK: Simulated payment (90% success rate) - only used for testing
+        // FALLBACK: Simulated payment (100% success for demo) - only used for testing
         console.warn('⚠️  SURFBOARD_API_KEY not configured. Using simulated payments for testing only.');
-        const isSuccess = Math.random() < 0.9;
         const transactionId = `SIM_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-        if (isSuccess) {
-          return await this.capturePayment(orderId, transactionId);
-        } else {
-          return await this.failPayment(orderId, 'Simulated payment decline');
-        }
+        return await this.capturePayment(orderId, transactionId);
       }
     } catch (error) {
       console.error('Payment processing error:', error.message);

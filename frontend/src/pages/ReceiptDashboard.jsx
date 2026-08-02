@@ -24,9 +24,6 @@ export default function ReceiptDashboard() {
 
     return (
       <DashboardLayout pageTitle="Digital Receipt" pageIcon="📄">
-        <button className="back-button" onClick={() => setCurrentScreen('payment')}>
-          ← Back
-        </button>
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">

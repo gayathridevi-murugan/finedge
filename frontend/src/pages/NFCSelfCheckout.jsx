@@ -5,20 +5,27 @@ import apiClient from '../services/api';
 import '../styles/NFCSelfCheckout.css';
 
 export default function NFCSelfCheckout() {
-  const cartId = useCheckoutStore((state) => state.cartId);
-  const cartItems = useCheckoutStore((state) => state.cartItems);
-  const cartTotal = useCheckoutStore((state) => state.cartTotal);
-  const setCartId = useCheckoutStore((state) => state.setCartId);
-  const setCartItems = useCheckoutStore((state) => state.setCartItems);
-  const setCartTotal = useCheckoutStore((state) => state.setCartTotal);
+  const cartId = useCheckoutStore((state) => state.nfcSelfCheckoutCartId);
+  const cartItems = useCheckoutStore((state) => state.nfcSelfCheckoutCartItems);
+  const cartTotal = useCheckoutStore((state) => state.nfcSelfCheckoutCartTotal);
+  const setCartId = useCheckoutStore((state) => state.setNFCSelfCheckoutCartId);
+  const setCartItems = useCheckoutStore((state) => state.setNFCSelfCheckoutCartItems);
+  const setCartTotal = useCheckoutStore((state) => state.setNFCSelfCheckoutCartTotal);
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
+  const setShoppingMode = useCheckoutStore((state) => state.setShoppingMode);
   const [isScanning, setIsScanning] = useState(false);
   const [scanAnimation, setScanAnimation] = useState(null);
   const [lastScannedProduct, setLastScannedProduct] = useState(null);
   const [availableProducts, setAvailableProducts] = useState([]);
+  const [availableNFCTags, setAvailableNFCTags] = useState([]);
 
   // Initialize cart on mount
   useEffect(() => {
+    setShoppingMode('nfc-self-checkout');
+    // IMPORTANT: Clear old cart data from any previous session
+    setCartItems([]);
+    setCartTotal(0);
+
     const initializeCart = async () => {
       try {
         const response = await apiClient.post('/cart/create', {});
@@ -30,10 +37,9 @@ export default function NFCSelfCheckout() {
       }
     };
 
-    if (!cartId) {
-      initializeCart();
-    }
-  }, [cartId, setCartId]);
+    // Always create a fresh cart when entering NFC Self Checkout
+    initializeCart();
+  }, [setCartId, setShoppingMode, setCartItems, setCartTotal]);
 
   // Load available products from backend on mount
   useEffect(() => {
@@ -52,8 +58,26 @@ export default function NFCSelfCheckout() {
     loadProducts();
   }, []);
 
+  // Load available NFC tags from backend on mount
+  useEffect(() => {
+    const loadNFCTags = async () => {
+      try {
+        const response = await apiClient.get('/nfc/available');
+        if (response.data.success && response.data.data.available_tags) {
+          setAvailableNFCTags(response.data.data.available_tags);
+        }
+      } catch (error) {
+        console.error('Could not load NFC tags from backend:', error);
+        setAvailableNFCTags([]);
+      }
+    };
+    loadNFCTags();
+  }, []);
+
   const handleSimulateNFCTap = async () => {
-    if (isScanning || availableProducts.length === 0) return;
+    // Use NFC tags if available, otherwise fall back to products
+    const tagsToUse = availableNFCTags.length > 0 ? availableNFCTags : availableProducts;
+    if (isScanning || tagsToUse.length === 0) return;
 
     setIsScanning(true);
     setScanAnimation('READY');
@@ -66,9 +90,30 @@ export default function NFCSelfCheckout() {
         setScanAnimation(sequence[i]);
       }
 
-      // Select random product from backend data
-      const randomProduct = availableProducts[Math.floor(Math.random() * availableProducts.length)];
-      setLastScannedProduct(randomProduct);
+      let randomProduct = null;
+
+      // If we have NFC tags, scan one to update last_scanned_at
+      if (availableNFCTags.length > 0) {
+        const randomTag = availableNFCTags[Math.floor(Math.random() * availableNFCTags.length)];
+        try {
+          const scanResponse = await apiClient.post('/nfc/scan', { tag_id: randomTag.tag_id });
+          if (scanResponse.data.success && scanResponse.data.data.product) {
+            randomProduct = scanResponse.data.data.product;
+            setLastScannedProduct(randomProduct);
+          }
+        } catch (error) {
+          console.warn('NFC scan failed, using fallback product:', error);
+          // Fall back to random product
+          randomProduct = availableProducts[Math.floor(Math.random() * availableProducts.length)];
+          setLastScannedProduct(randomProduct);
+        }
+      } else {
+        // Fallback: use random product without NFC scan
+        randomProduct = availableProducts[Math.floor(Math.random() * availableProducts.length)];
+        setLastScannedProduct(randomProduct);
+      }
+
+      if (!randomProduct) throw new Error('No product selected');
 
       // Add to cart
       const newCartItems = [...cartItems];
@@ -93,7 +138,7 @@ export default function NFCSelfCheckout() {
       if (cartId) {
         try {
           await apiClient.post(`/cart/${cartId}/add`, {
-            products: [{ product_id: randomProduct.id, quantity: existingItem ? 1 : 1 }]
+            products: [{ product_id: randomProduct.id, quantity: 1 }]
           });
         } catch (error) {
           console.warn('Could not persist cart to backend:', error);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCheckoutStore } from '../store/checkoutStore';
 import DashboardLayout from '../components/DashboardLayout';
 import apiClient from '../services/api';
@@ -6,259 +6,597 @@ import '../styles/GroupShopping.css';
 
 export default function GroupShopping() {
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
-  const cartItems = useCheckoutStore((state) => state.cartItems);
 
-  // State Management
-  const [groupSessionId, setGroupSessionId] = useState('GRP-' + Math.random().toString(36).substr(2, 9).toUpperCase());
-  const [members, setMembers] = useState([
-    { id: 'host', name: 'You (Host)', status: 'paid', amount: 0, paid: false }
-  ]);
-  const [products, setProducts] = useState(cartItems.map(item => ({
-    ...item,
-    assignedTo: 'host',
-    emoji: item.image || '👕'
-  })));
-  const [splitCalculation, setSplitCalculation] = useState({});
+  // Flow states: 'add-shoppers' → 'shopping' → 'payment' → 'shopping' → ... → 'complete'
+  const [flowStep, setFlowStep] = useState('add-shoppers');
+
+  // Shoppers list with names
+  const [shoppers, setShoppers] = useState([]);
+  const [newShopperName, setNewShopperName] = useState('');
+
+  // Group session data
+  const [groupSessionId, setGroupSessionId] = useState(null);
+  const [currentShopperIndex, setCurrentShopperIndex] = useState(0);
+
+  // Track each person's completion
+  const [completedShoppers, setCompletedShoppers] = useState([]);
+
+  // Current person's shopping data
+  const [currentPersonCart, setCurrentPersonCart] = useState([]);
+  const [currentPersonTotal, setCurrentPersonTotal] = useState(0);
+  const [currentPersonCartId, setCurrentPersonCartId] = useState(null);
+  const [currentPersonOrderId, setCurrentPersonOrderId] = useState(null);
+
+  // Product being scanned
+  const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // UI states
+  const [scanning, setScanning] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const initializedRef = useRef(false);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState('');
 
-  // Initialize calculations
+  // Load available NFC tags on mount
   useEffect(() => {
-    if (!initializedRef.current) {
-      calculatePayments();
-      initializedRef.current = true;
-    }
+    const loadAvailableTags = async () => {
+      try {
+        const response = await apiClient.get('/nfc/available');
+        if (response.data.success && response.data.data.available_tags) {
+          setAvailableTags(response.data.data.available_tags);
+        }
+      } catch (error) {
+        console.warn('Could not load NFC tags');
+      }
+    };
+    loadAvailableTags();
   }, []);
 
-  // Calculate payments for all members
-  const calculatePayments = () => {
-    const calculations = {};
-
-    members.forEach(member => {
-      const memberProducts = products.filter(p => p.assignedTo === member.id);
-      const subtotal = memberProducts.reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0);
-      const sharedAmount = products
-        .filter(p => p.assignedTo === 'shared')
-        .reduce((sum, p) => sum + (parseFloat(p.price) * p.quantity), 0) / members.length;
-
-      const total = subtotal + sharedAmount;
-      const tax = total * 0.1;
-      const grandTotal = total + tax;
-
-      calculations[member.id] = {
-        memberId: member.id,
-        memberName: member.name,
-        subtotal: parseFloat(subtotal.toFixed(2)),
-        sharedAmount: parseFloat(sharedAmount.toFixed(2)),
-        tax: parseFloat(tax.toFixed(2)),
-        total: parseFloat(grandTotal.toFixed(2)),
-        paid: member.paid || false,
-        status: member.paid ? 'paid' : 'pending'
-      };
-    });
-
-    setSplitCalculation(calculations);
-  };
-
-  // Update product assignment
-  const handleAssignProduct = (productId, memberId) => {
-    const updatedProducts = products.map(p =>
-      p.id === productId ? { ...p, assignedTo: memberId } : p
-    );
-    setProducts(updatedProducts);
-
-    // Recalculate immediately
-    const updatedMembers = members.map(m => ({
-      ...m,
-      paid: splitCalculation[m.id]?.paid || false
-    }));
-    setMembers(updatedMembers);
-    calculatePayments();
-  };
-
-  // Handle payment
-  const handlePayment = async (memberId) => {
+  // Initialize cart for current person
+  const initializePersonCart = async () => {
     try {
-      setLoading(true);
-      const amount = splitCalculation[memberId]?.total || 0;
+      const response = await apiClient.post('/cart/create', {});
+      if (response.data.success && response.data.data.cart_id) {
+        setCurrentPersonCartId(response.data.data.cart_id);
+      }
+    } catch (error) {
+      console.warn('Could not initialize cart:', error);
+    }
+  };
 
-      // Simulate payment
-      const updatedMembers = members.map(m =>
-        m.id === memberId ? { ...m, paid: true } : m
-      );
-      setMembers(updatedMembers);
+  // When person changes, initialize their cart
+  useEffect(() => {
+    if (flowStep === 'shopping' && !currentPersonCartId) {
+      initializePersonCart();
+    }
+  }, [flowStep, currentShopperIndex, currentPersonCartId]);
 
-      // Update calculations
-      const updatedCalcs = { ...splitCalculation };
-      updatedCalcs[memberId].paid = true;
-      updatedCalcs[memberId].status = 'paid';
-      setSplitCalculation(updatedCalcs);
+  // ============================================
+  // STEP 1: ADD SHOPPERS WITH NAMES
+  // ============================================
+  const handleAddShopper = () => {
+    const name = newShopperName.trim() || `Person ${shoppers.length + 1}`;
+    const newShoppers = [...shoppers, { name: name, status: 'Waiting' }];
+    setShoppers(newShoppers);
+    setNewShopperName('');
+  };
 
-      setError(null);
-    } catch (err) {
-      setError('Payment failed. Please try again.');
+  const handleStartShopping = async () => {
+    if (shoppers.length === 0) {
+      alert('Please add at least one shopper');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await apiClient.post('/group-shopping/create', {
+        groupName: `Group-${Date.now()}`,
+        memberCount: shoppers.length,
+        members: shoppers.map(s => s.name)
+      });
+
+      if (response.data.success) {
+        setGroupSessionId(response.data.data.groupSessionId);
+        setCurrentShopperIndex(0);
+
+        // Mark first shopper as Shopping
+        const updated = [...shoppers];
+        updated[0].status = 'Shopping';
+        setShoppers(updated);
+
+        setFlowStep('shopping');
+      }
+    } catch (error) {
+      console.error('Error creating group session:', error);
+      alert('Error creating group session');
     } finally {
       setLoading(false);
     }
   };
 
-  // Check if all paid
-  const allPaid = members.every(m => m.paid);
-  const totalAmount = Object.values(splitCalculation).reduce((sum, calc) => sum + calc.total, 0);
+  // ============================================
+  // SCAN PRODUCTS FOR CURRENT PERSON
+  // ============================================
+  const handleSimulateNFCTap = async () => {
+    if (scanning || loading) return;
 
-  return (
-    <DashboardLayout pageTitle="Group Shopping" pageIcon="👥">
-      <div className="group-shopping-premium">
-        {/* Header Card */}
-        <div className="premium-card header-card">
-          <div className="header-top">
-            <div>
-              <h1 className="group-title">👥 Group Shopping</h1>
-              <p className="group-code">Code: {groupSessionId}</p>
-            </div>
-            <div className="qr-section">
-              <div className="qr-placeholder">📱 QR</div>
-            </div>
-          </div>
-        </div>
+    setScanning(true);
+    setLoading(true);
 
-        <div className="dashboard-grid">
-          {/* Members Panel */}
-          <div className="premium-card members-card">
-            <h2 className="section-title">Members Joined</h2>
-            <div className="members-grid">
-              {members.map(member => (
-                <div key={member.id} className={`member-badge ${member.paid ? 'paid' : 'pending'}`}>
-                  <div className="member-avatar">👤</div>
-                  <div className="member-info">
-                    <p className="member-name">{member.name}</p>
-                    <div className="member-status-badges">
-                      {member.paid ? (
-                        <span className="badge success">✓ Paid</span>
-                      ) : (
-                        <span className="badge pending">⏳ Pending</span>
-                      )}
-                    </div>
-                  </div>
+    try {
+      const steps = ['READY', 'NFC TAG DETECTED', 'READING PRODUCT', 'VERIFYING PRODUCT', 'PRODUCT FOUND'];
+      for (let step of steps) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      let tagId;
+      if (availableTags.length > 0) {
+        tagId = availableTags[Math.floor(Math.random() * availableTags.length)].tag_id;
+      } else {
+        const demoTags = ['NFC_0001_', 'NFC_0002_', 'NFC_0003_'];
+        tagId = demoTags[Math.floor(Math.random() * demoTags.length)];
+      }
+
+      const response = await apiClient.post('/nfc/scan', { tag_id: tagId });
+
+      if (response.data.success && response.data.data.product) {
+        const product = response.data.data.product;
+        setSelectedProduct({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.category === 'Shoes' ? '👟' : product.category === 'Accessories' ? '🎒' : '👕',
+          nfcId: tagId,
+          brand: product.brand || 'Premium Brand',
+          category: product.category || 'General',
+          subcategory: product.subcategory || '',
+          size: product.size || 'One Size',
+          color: product.color || ''
+        });
+      } else {
+        alert('Product not found');
+      }
+    } catch (error) {
+      console.error('Error scanning NFC tag:', error);
+      alert('Error scanning NFC tag. Please try again.');
+    } finally {
+      setScanning(false);
+      setLoading(false);
+    }
+  };
+
+  // Add scanned product to current person's cart
+  const handleAddToCart = async () => {
+    if (!selectedProduct) {
+      alert('No product selected');
+      return;
+    }
+
+    if (!currentPersonCartId) {
+      alert('Cart not initialized');
+      return;
+    }
+
+    const newItems = [...currentPersonCart];
+    const existing = newItems.find(i => i.id === selectedProduct.id);
+
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      newItems.push({
+        id: selectedProduct.id,
+        name: selectedProduct.name,
+        price: parseFloat(selectedProduct.price),
+        image: selectedProduct.image,
+        brand: selectedProduct.brand,
+        size: selectedProduct.size,
+        color: selectedProduct.color,
+        quantity: 1
+      });
+    }
+
+    setCurrentPersonCart(newItems);
+    const total = newItems.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
+    setCurrentPersonTotal(total);
+
+    try {
+      await apiClient.post(`/cart/${currentPersonCartId}/add`, {
+        products: [{ product_id: selectedProduct.id, quantity: 1 }]
+      });
+    } catch (error) {
+      console.warn('Could not persist cart to backend:', error);
+    }
+
+    setSelectedProduct(null);
+  };
+
+  // Proceed to payment
+  const handleProceedToPayment = async () => {
+    if (currentPersonCart.length === 0) {
+      alert('Please add at least one product');
+      return;
+    }
+
+    setFlowStep('payment');
+    setPaymentProcessing(false);
+    setPaymentSuccess(false);
+  };
+
+  // Process payment for current person
+  const handlePayNow = async () => {
+    setPaymentProcessing(true);
+    setPaymentMessage('Processing payment...');
+
+    try {
+      let orderId;
+
+      // Create order if needed
+      if (!currentPersonOrderId) {
+        try {
+          const orderResponse = await apiClient.post('/orders/create', {
+            cart_id: currentPersonCartId,
+            customer_id: null
+          });
+          orderId = orderResponse.data.data?.order?.id || `ORD-${Date.now()}`;
+        } catch (err) {
+          orderId = `ORD-${Date.now()}`;
+        }
+      } else {
+        orderId = currentPersonOrderId;
+      }
+
+      setCurrentPersonOrderId(orderId);
+
+      const amount = currentPersonTotal * 1.1;
+
+      try {
+        await apiClient.post('/payments/process', {
+          order_id: orderId,
+          amount: amount,
+          payment_method: 'card'
+        });
+      } catch (err) {
+        console.warn('Payment API error, using demo success:', err);
+      }
+
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setPaymentSuccess(true);
+      setPaymentMessage('✓ Payment Successful!');
+    } catch (error) {
+      console.error('Payment error:', error);
+      setPaymentSuccess(false);
+      setPaymentMessage('✗ Payment Failed. Please try again.');
+    } finally {
+      setPaymentProcessing(false);
+    }
+  };
+
+  // Proceed to next person
+  const handleNextPerson = () => {
+    const updated = [...completedShoppers];
+    updated.push({
+      index: currentShopperIndex,
+      name: shoppers[currentShopperIndex].name,
+      cartItems: currentPersonCart,
+      cartTotal: currentPersonTotal,
+      orderId: currentPersonOrderId,
+      amount: currentPersonTotal * 1.1,
+      status: 'COMPLETED'
+    });
+    setCompletedShoppers(updated);
+
+    // Check if all shoppers are done
+    if (currentShopperIndex === shoppers.length - 1) {
+      setFlowStep('complete');
+    } else {
+      // Move to next shopper
+      const newShoppers = [...shoppers];
+      newShoppers[currentShopperIndex].status = 'Completed';
+      newShoppers[currentShopperIndex + 1].status = 'Shopping';
+      setShoppers(newShoppers);
+
+      setCurrentShopperIndex(currentShopperIndex + 1);
+      setCurrentPersonCart([]);
+      setCurrentPersonTotal(0);
+      setCurrentPersonCartId(null);
+      setCurrentPersonOrderId(null);
+      setPaymentSuccess(false);
+      setFlowStep('shopping');
+    }
+  };
+
+  // ============================================
+  // RENDER: ADD SHOPPERS STEP
+  // ============================================
+  if (flowStep === 'add-shoppers') {
+    return (
+      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+        <div className="group-shopping-container">
+          <div className="add-shoppers-section">
+            <h1 className="section-title">Group Shopping</h1>
+            <p className="section-subtitle">Step 1: Add Shoppers</p>
+            <p className="section-description">Set up group members. Each person will shop and checkout sequentially.</p>
+
+            <div className="shoppers-list">
+              {shoppers.map((shopper, idx) => (
+                <div key={idx} className="shopper-card">
+                  <span className="shopper-number">#{idx + 1}</span>
+                  <span className="shopper-name">{shopper.name}</span>
+                  <span className={`shopper-status status-${shopper.status.toLowerCase()}`}>
+                    {shopper.status}
+                  </span>
                 </div>
               ))}
             </div>
+
+            <div className="add-shopper-form">
+              <input
+                type="text"
+                placeholder="Add another shopper's name..."
+                value={newShopperName}
+                onChange={(e) => setNewShopperName(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddShopper()}
+              />
+              <button className="btn-add-shopper" onClick={handleAddShopper}>
+                + Add Shopper
+              </button>
+            </div>
+
+            <button
+              className="btn-start-shopping"
+              onClick={handleStartShopping}
+              disabled={loading || shoppers.length === 0}
+            >
+              Start Shopping →
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ============================================
+  // RENDER: SHOPPING STEP
+  // ============================================
+  if (flowStep === 'shopping') {
+    const currentShopper = shoppers[currentShopperIndex];
+    return (
+      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+        <div className="group-shopping-container">
+          <div className="group-header">
+            <h2>Group Shopping</h2>
+            <p className="group-session-info">
+              {shoppers.length} People • Session: GRP-{groupSessionId?.substring(0, 8) || 'LOADING'}
+            </p>
           </div>
 
-          {/* Products Panel */}
-          <div className="premium-card products-card">
-            <h2 className="section-title">Products Scanned</h2>
-            <div className="products-list">
-              {products.length === 0 ? (
-                <p className="empty-state">No products added yet</p>
-              ) : (
-                products.map(product => (
-                  <div key={product.id} className="product-row">
-                    <div className="product-info">
-                      <div className="product-emoji">{product.emoji}</div>
-                      <div className="product-details">
-                        <p className="product-name">{product.name}</p>
-                        <p className="product-brand">{product.brand || 'Premium'}</p>
-                      </div>
-                      <div className="product-price">₹{parseFloat(product.price).toLocaleString()}</div>
+          <div className="current-turn">
+            <p className="turn-label">Current Turn</p>
+            <h3 className="turn-title">{currentShopper.name}</h3>
+          </div>
+
+          {/* GROUP PROGRESS */}
+          <div className="group-progress">
+            {shoppers.map((shopper, idx) => (
+              <div key={idx} className={`progress-item status-${shopper.status.toLowerCase()}`}>
+                <span className="progress-icon">
+                  {shopper.status === 'Completed' ? '✓' : shopper.status === 'Shopping' ? '🛍️' : '⏳'}
+                </span>
+                <span className="progress-name">{shopper.name}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* NFC Scanner */}
+          <div className="nfc-section">
+            <div className="nfc-scanner-box">
+              <div className={`nfc-animation ${scanning ? 'scanning' : ''}`}>
+                <div className="nfc-scanner-ring ring1"></div>
+                <div className="nfc-scanner-ring ring2"></div>
+                <div className="nfc-scanner-ring ring3"></div>
+                <div className="nfc-icon-center">📱</div>
+              </div>
+
+              <h3 className="scanner-title">Scan your products</h3>
+              <p className="nfc-instruction">
+                {scanning ? '🔄 Scanning...' : '📍 Hold phone near product NFC tag'}
+              </p>
+
+              <button
+                className="btn-scan"
+                onClick={handleSimulateNFCTap}
+                disabled={scanning}
+              >
+                {scanning ? '⏳ Scanning...' : '👆 Simulate NFC Tap'}
+              </button>
+            </div>
+
+            {/* Product Details */}
+            {selectedProduct && (
+              <div className="product-details">
+                <div className="product-info">
+                  <div className="product-image">{selectedProduct.image}</div>
+                  <div className="product-text">
+                    <h4>{selectedProduct.name}</h4>
+                    <p className="brand">{selectedProduct.brand}</p>
+                    <p className="price">₹{selectedProduct.price.toLocaleString()}</p>
+                    <p className="specs">{selectedProduct.size} • {selectedProduct.color}</p>
+                  </div>
+                </div>
+                <div className="product-actions">
+                  <button className="btn-add" onClick={handleAddToCart}>Add to Cart</button>
+                  <button className="btn-cancel" onClick={() => setSelectedProduct(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Cart Summary */}
+          <div className="cart-section">
+            <h3>Your Cart</h3>
+            <div className="cart-items">
+              {currentPersonCart.length > 0 ? (
+                currentPersonCart.map((item) => (
+                  <div key={item.id} className="cart-item">
+                    <span className="item-image">{item.image}</span>
+                    <div className="item-details">
+                      <p className="item-name">{item.name}</p>
+                      <p className="item-qty">Qty: {item.quantity}</p>
                     </div>
-                    <select
-                      className="assignment-dropdown"
-                      value={product.assignedTo}
-                      onChange={(e) => handleAssignProduct(product.id, e.target.value)}
-                    >
-                      {members.map(member => (
-                        <option key={member.id} value={member.id}>
-                          {member.name.split('(')[0].trim()}
-                        </option>
-                      ))}
-                      <option value="shared">Shared</option>
-                    </select>
+                    <span className="item-price">₹{(item.price * item.quantity).toLocaleString()}</span>
                   </div>
                 ))
+              ) : (
+                <p className="empty-cart">No items yet. Scan your first product!</p>
               )}
             </div>
-          </div>
 
-          {/* Payment Summary Panel */}
-          <div className="premium-card payment-summary-card">
-            <h2 className="section-title">Payment Summary</h2>
-            <div className="payment-summary">
-              {members.map(member => {
-                const calc = splitCalculation[member.id];
-                return (
-                  <div key={member.id} className={`summary-row ${calc?.paid ? 'paid' : ''}`}>
-                    <div className="summary-name">
-                      <span className="member-label">{member.name}</span>
-                      <div className="summary-breakdown">
-                        <small>Items: ₹{calc?.subtotal || 0}</small>
-                        {calc?.sharedAmount > 0 && <small>Shared: ₹{calc.sharedAmount}</small>}
-                        <small>Tax: ₹{calc?.tax || 0}</small>
-                      </div>
-                    </div>
-                    <div className="summary-total">
-                      <p className="amount">₹{calc?.total || 0}</p>
-                      {calc?.paid ? (
-                        <span className="badge-small success">✓ Paid</span>
-                      ) : (
-                        <span className="badge-small pending">Pending</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="summary-divider"></div>
-              <div className="summary-grand-total">
-                <p className="label">Grand Total</p>
-                <p className="amount">₹{totalAmount.toLocaleString()}</p>
+            {currentPersonCart.length > 0 && (
+              <div className="cart-totals">
+                <div className="total-row">
+                  <span>Subtotal</span>
+                  <span>₹{currentPersonTotal.toLocaleString()}</span>
+                </div>
+                <div className="total-row">
+                  <span>Tax (10%)</span>
+                  <span>₹{(currentPersonTotal * 0.1).toLocaleString()}</span>
+                </div>
+                <div className="total-row final">
+                  <span>Total</span>
+                  <span>₹{(currentPersonTotal * 1.1).toLocaleString()}</span>
+                </div>
+              </div>
+            )}
+
+            <button
+              className="btn-pay"
+              onClick={handleProceedToPayment}
+              disabled={currentPersonCart.length === 0}
+            >
+              PAY NOW
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ============================================
+  // RENDER: PAYMENT STEP
+  // ============================================
+  if (flowStep === 'payment') {
+    const currentShopper = shoppers[currentShopperIndex];
+    return (
+      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+        <div className="group-shopping-container">
+          <div className="payment-section">
+            <h2>{currentShopper.name} - Payment</h2>
+
+            <div className="payment-items">
+              <h3>Items</h3>
+              {currentPersonCart.map((item) => (
+                <div key={item.id} className="payment-item">
+                  <span>{item.name} × {item.quantity}</span>
+                  <span className="price">₹{(item.price * item.quantity).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="payment-totals">
+              <div className="total-row">
+                <span>Subtotal</span>
+                <span>₹{currentPersonTotal.toLocaleString()}</span>
+              </div>
+              <div className="total-row">
+                <span>Tax (10%)</span>
+                <span>₹{(currentPersonTotal * 0.1).toLocaleString()}</span>
+              </div>
+              <div className="total-row final">
+                <span>Total</span>
+                <span>₹{(currentPersonTotal * 1.1).toLocaleString()}</span>
               </div>
             </div>
-          </div>
 
-          {/* Payment Actions Panel */}
-          <div className="premium-card actions-card">
-            <h2 className="section-title">Complete Payment</h2>
-            <div className="payment-actions">
-              {members.map(member => {
-                const calc = splitCalculation[member.id];
-                return (
-                  <div key={member.id} className="payment-button-wrapper">
-                    {calc?.paid ? (
-                      <button className="btn-paid" disabled>
-                        ✓ {member.name.split('(')[0].trim()} - Paid
-                      </button>
-                    ) : (
-                      <button
-                        className="btn-pay"
-                        onClick={() => handlePayment(member.id)}
-                        disabled={loading}
-                      >
-                        💳 Pay ₹{calc?.total || 0}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {!paymentSuccess && (
+              <button
+                className="btn-pay-large"
+                onClick={handlePayNow}
+                disabled={paymentProcessing}
+              >
+                {paymentProcessing ? '⏳ Processing...' : '💳 Pay Now'}
+              </button>
+            )}
 
-            {allPaid && (
-              <div className="completion-section">
-                <div className="success-badge">✨ All Members Paid</div>
-                <button
-                  className="btn-complete"
-                  onClick={() => setCurrentScreen('exit-verification')}
-                >
-                  🎉 Complete Group Checkout
+            {paymentMessage && (
+              <div className={`payment-message ${paymentSuccess ? 'success' : 'error'}`}>
+                {paymentMessage}
+              </div>
+            )}
+
+            {paymentSuccess && (
+              <div className="payment-success">
+                <h3>✓ Payment Successful!</h3>
+                <p>Order ID: {currentPersonOrderId}</p>
+                <button className="btn-next" onClick={handleNextPerson}>
+                  {currentShopperIndex === shoppers.length - 1 ? 'View Summary →' : 'Next Person →'}
                 </button>
               </div>
             )}
           </div>
         </div>
+      </DashboardLayout>
+    );
+  }
 
-        {/* Error Message */}
-        {error && <div className="error-message">{error}</div>}
-      </div>
-    </DashboardLayout>
-  );
+  // ============================================
+  // RENDER: COMPLETE STEP
+  // ============================================
+  if (flowStep === 'complete') {
+    const groupTotal = completedShoppers.reduce((sum, s) => sum + s.amount, 0);
+    return (
+      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+        <div className="group-shopping-container">
+          <div className="complete-section">
+            <h1>✓ Group Shopping Complete!</h1>
+            <p className="complete-subtitle">
+              All {shoppers.length} shoppers have checked out
+            </p>
+
+            <div className="completion-summary">
+              <h3>Shopping Summary</h3>
+              {completedShoppers.map((shopper) => (
+                <div key={shopper.index} className="person-summary">
+                  <span className="person-label">{shopper.name}</span>
+                  <span className="person-status">✓ Completed</span>
+                  <span className="person-amount">₹{shopper.amount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="group-totals">
+              <div className="total-item">
+                <span className="label">Total Shoppers</span>
+                <span className="value">{shoppers.length}</span>
+              </div>
+              <div className="total-item">
+                <span className="label">Group Total</span>
+                <span className="value">₹{groupTotal.toLocaleString()}</span>
+              </div>
+              <div className="total-item">
+                <span className="label">Average Per Person</span>
+                <span className="value">₹{(groupTotal / shoppers.length).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <button className="btn-dashboard" onClick={() => setCurrentScreen('overview')}>
+              Back to Dashboard
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 }

@@ -5,17 +5,29 @@ const { Op } = require('sequelize');
 
 const router = express.Router();
 
-// Create a new group shopping session
+// Create a new group shopping session with members
 router.post('/create', async (req, res) => {
   try {
     const { groupName, memberCount } = req.body;
 
     const groupSession = await GroupSession.create({
-      group_name: groupName,
+      group_name: groupName || `Group-${Date.now()}`,
       total_members: memberCount,
-      status: 'ACTIVE',
-      created_at: new Date()
+      status: 'ACTIVE'
     });
+
+    // Create group members with sequential numbering
+    const members = [];
+    for (let i = 1; i <= memberCount; i++) {
+      const member = await GroupMember.create({
+        group_session_id: groupSession.id,
+        member_number: i,
+        member_name: `Person ${i}`,
+        status: i === 1 ? 'SHOPPING' : 'WAITING',
+        payment_status: 'UNPAID'
+      });
+      members.push(member);
+    }
 
     res.json({
       success: true,
@@ -23,7 +35,14 @@ router.post('/create', async (req, res) => {
         groupSessionId: groupSession.id,
         groupName: groupSession.group_name,
         totalMembers: groupSession.total_members,
-        status: groupSession.status
+        status: groupSession.status,
+        members: members.map(m => ({
+          id: m.id,
+          number: m.member_number,
+          name: m.member_name,
+          status: m.status,
+          paymentStatus: m.payment_status
+        }))
       }
     });
   } catch (error) {
@@ -209,19 +228,25 @@ router.post('/:groupSessionId/calculate-split', async (req, res) => {
 });
 
 // Process payment for group member
-router.post('/:groupSessionId/member/:memberId/pay', async (req, res) => {
+router.post('/:groupSessionId/member/:memberNumber/pay', async (req, res) => {
   try {
-    const { groupSessionId, memberId } = req.params;
+    const { groupSessionId, memberNumber } = req.params;
     const { amount, paymentMethod, surfboardPaymentId } = req.body;
 
-    const member = await GroupMember.findByPk(memberId);
+    const member = await GroupMember.findOne({
+      where: {
+        group_session_id: groupSessionId,
+        member_number: parseInt(memberNumber)
+      }
+    });
+
     if (!member) {
       return res.status(404).json({ success: false, error: 'Member not found' });
     }
 
     // Create payment record
     const payment = await Payment.create({
-      order_id: null, // Will be linked to group order later
+      order_id: member.order_id || null,
       amount,
       currency: 'INR',
       payment_method: paymentMethod || 'SURFBOARD',
@@ -232,7 +257,9 @@ router.post('/:groupSessionId/member/:memberId/pay', async (req, res) => {
 
     // Update member payment status
     member.payment_status = 'PAID';
+    member.payment_amount = amount;
     member.surfboard_payment_id = surfboardPaymentId;
+    member.status = 'COMPLETED';
     await member.save();
 
     // Check if all members are paid
@@ -241,10 +268,20 @@ router.post('/:groupSessionId/member/:memberId/pay', async (req, res) => {
     });
     const allPaid = groupMembers.every(m => m.payment_status === 'PAID');
 
+    // If all members paid, update group session status
+    if (allPaid) {
+      const groupSession = await GroupSession.findByPk(groupSessionId);
+      if (groupSession) {
+        groupSession.status = 'COMPLETED';
+        groupSession.split_status = 'FULLY_PAID';
+        await groupSession.save();
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        memberId,
+        memberId: member.id,
         paymentId: payment.id,
         status: 'PAID',
         allMembersPaid: allPaid

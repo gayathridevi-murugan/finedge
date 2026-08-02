@@ -1,18 +1,38 @@
 .payment-container {
   width: 100%;
-  min-height: 100vh;
+  min-height: calc(100vh - 60px);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: var(--color-bg-secondary);
-  padding: 60px 40px 40px;
+  justify-content: flex-start;
+  background: var(--color-bg-primary);
+  padding: 40px 60px;
   position: relative;
+  overflow-y: auto;
 }
 
 .payment-content {
-  max-width: 500px;
+  max-width: 550px;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.back-button {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 8px 12px;
+  margin-bottom: 24px;
+  transition: all 0.3s;
+}
+
+.back-button:hover {
+  color: var(--color-primary);
 }
 
 .payment-content h1 {
@@ -24,11 +44,11 @@
 }
 
 .payment-items {
-  background: var(--color-primary-bg-light);
+  background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 28px;
+  margin-bottom: 32px;
 }
 
 .payment-items h3 {
@@ -73,11 +93,11 @@
 }
 
 .payment-summary {
-  background: var(--color-info-bg-light);
-  border: 1px solid var(--color-info-bg-strong);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 32px;
+  padding: 28px;
+  margin-bottom: 40px;
 }
 
 .summary-item {
@@ -127,10 +147,10 @@
 
 .pay-button {
   width: 100%;
-  background: linear-gradient(135deg, var(--color-info) 0%, var(--color-primary) 100%);
-  color: var(--color-button-primary-text);
-  padding: 18px;
-  font-size: 16px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
+  color: white;
+  padding: 18px 24px;
+  font-size: 18px;
   font-weight: 700;
   border-radius: 12px;
   border: none;
@@ -138,7 +158,10 @@
   text-transform: uppercase;
   letter-spacing: 2px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 4px 16px rgba(0, 102, 255, 0.3);
+  margin-top: var(--space-3);
+  z-index: 10;
+  position: relative;
 }
 
 .pay-button:hover:not(:disabled) {

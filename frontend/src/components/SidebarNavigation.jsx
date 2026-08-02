@@ -17,22 +17,14 @@ export default function SidebarNavigation({ sidebarOpen, onNavigate, currentScre
       items: [
         { id: 'smart-shopping', label: 'Smart NFC Shopping', icon: '📱' },
         { id: 'nfc-self-checkout', label: 'NFC Self Checkout', icon: '🏪' },
+        { id: 'nfc-scans', label: 'NFC Scans', icon: '📡' },
       ]
     },
     {
       id: 'shopping',
       title: 'SHOPPING',
       items: [
-        { id: 'cart', label: 'Cart', icon: '🛒' },
         { id: 'group-shopping', label: 'Group Shopping', icon: '👥' },
-      ]
-    },
-    {
-      id: 'payments',
-      title: 'PAYMENTS',
-      items: [
-        { id: 'payment', label: 'Payment', icon: '💳' },
-        { id: 'receipt', label: 'Receipt', icon: '📄' },
       ]
     },
     {
@@ -40,13 +32,6 @@ export default function SidebarNavigation({ sidebarOpen, onNavigate, currentScre
       title: 'SECURITY',
       items: [
         { id: 'exit-verification', label: 'Exit Verification', icon: '🚪' },
-      ]
-    },
-    {
-      id: 'product',
-      title: 'PRODUCT',
-      items: [
-        { id: 'product-passport', label: 'Product Passport', icon: '📦' },
       ]
     },
     {

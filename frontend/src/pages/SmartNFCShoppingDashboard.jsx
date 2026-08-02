@@ -6,15 +6,39 @@ import apiClient from '../services/api';
 import '../styles/SmartNFCShoppingDashboard.css';
 
 export default function SmartNFCShoppingDashboard() {
-  const cartItems = useCheckoutStore((state) => state.cartItems);
-  const setCartItems = useCheckoutStore((state) => state.setCartItems);
-  const setCartTotal = useCheckoutStore((state) => state.setCartTotal);
+  const cartId = useCheckoutStore((state) => state.smartShoppingCartId);
+  const cartItems = useCheckoutStore((state) => state.smartShoppingCartItems);
+  const setCartId = useCheckoutStore((state) => state.setSmartShoppingCartId);
+  const setCartItems = useCheckoutStore((state) => state.setSmartShoppingCartItems);
+  const setCartTotal = useCheckoutStore((state) => state.setSmartShoppingCartTotal);
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
+  const setShoppingMode = useCheckoutStore((state) => state.setShoppingMode);
   const [scanning, setScanning] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [availableTags, setAvailableTags] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Initialize cart on mount - ALWAYS create fresh cart and clear old data
+  useEffect(() => {
+    setShoppingMode('smart-shopping');
+    setCartItems([]);
+    setCartTotal(0);
+    setSelectedProduct(null);
+
+    const initializeCart = async () => {
+      try {
+        const response = await apiClient.post('/cart/create', {});
+        if (response.data.success && response.data.data.cart_id) {
+          setCartId(response.data.data.cart_id);
+        }
+      } catch (error) {
+        console.warn('Could not initialize cart:', error);
+      }
+    };
+
+    initializeCart();
+  }, [setCartId, setCartItems, setCartTotal, setShoppingMode]);
 
   // Load available NFC tags from backend on mount
   useEffect(() => {
@@ -31,7 +55,7 @@ export default function SmartNFCShoppingDashboard() {
     loadAvailableTags();
   }, []);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedProduct) {
       alert('No product selected');
       return;
@@ -68,6 +92,17 @@ export default function SmartNFCShoppingDashboard() {
     setCartItems(newItems);
     const total = newItems.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
     setCartTotal(total);
+
+    // Persist to backend if cart exists
+    if (cartId) {
+      try {
+        await apiClient.post(`/cart/${cartId}/add`, {
+          products: [{ product_id: selectedProduct.id, quantity: existing ? 1 : 1 }]
+        });
+      } catch (error) {
+        console.warn('Could not persist cart to backend:', error);
+      }
+    }
 
     // Redirect to cart page after adding to cart
     setCurrentScreen('cart');
@@ -123,32 +158,8 @@ export default function SmartNFCShoppingDashboard() {
           sku: product.sku || ''
         });
 
-        // Add to cart using REAL product data from API (no defaults/fallbacks)
-        const newCartItems = [...cartItems];
-        const existingItem = newCartItems.find(item => item.id === product.id);
-
-        if (existingItem) {
-          // Item already in cart, just increase quantity
-          existingItem.quantity += 1;
-        } else {
-          // Add NEW item with ONLY real API data
-          const cartItem = {
-            id: product.id,
-            name: product.name,
-            price: parseFloat(product.price),
-            category: product.category,
-            brand: product.brand,
-            size: product.size,
-            color: product.color,
-            image: product.category === 'Shoes' ? '👟' : product.category === 'Accessories' ? '🎒' : '👕',
-            quantity: 1
-          };
-          newCartItems.push(cartItem);
-        }
-
-        setCartItems(newCartItems);
-        const newTotal = newCartItems.reduce((sum, item) => sum + (parseFloat(item.price) * (item.quantity || 1)), 0);
-        setCartTotal(newTotal);
+        // Only set the product details, don't add to cart yet
+        // User must click "Add to Cart" button to add to cart
       } else {
         console.error('Product not found from backend');
       }
@@ -165,9 +176,6 @@ export default function SmartNFCShoppingDashboard() {
 
   return (
     <DashboardLayout pageTitle="🛍️ Smart NFC Fashion Shopping" pageIcon="👕">
-      <button className="back-button" onClick={() => setCurrentScreen('overview')}>
-        ← Back
-      </button>
       <div className="smart-nfc-shopping">
         {/* NFC INTERACTION AREA */}
         <div className="nfc-interaction-section">

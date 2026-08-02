@@ -28,10 +28,64 @@ router.post('/onboard', async (req, res) => {
       });
     }
 
-    // Use environment Surfboard merchant ID or generate fallback
-    const merchant_id = process.env.SURFBOARD_MERCHANT_ID || `MERCHANT_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // Generate unique local merchant_id
+    const merchant_id = `MERCHANT_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // Create merchant in database
+    let surfboard_merchant_id = null;
+    let surfboard_status = 'NOT_REGISTERED';
+    let merchant_status = 'PENDING';
+
+    // Call Surfboard Merchant Onboarding API if credentials provided
+    if (process.env.SURFBOARD_API_KEY && process.env.SURFBOARD_SECRET_KEY && process.env.SURFBOARD_BASE_URL) {
+      try {
+        console.log('🔄 Calling Surfboard Merchant Onboarding API...');
+
+        const surfboardResponse = await axios.post(
+          `${process.env.SURFBOARD_BASE_URL}/api/v1/merchants/onboard`,
+          {
+            partner_id: process.env.SURFBOARD_PARTNER_ID,
+            business_name,
+            business_type,
+            business_email,
+            owner_name,
+            owner_email,
+            owner_phone,
+            bank_account_last4: account_number ? account_number.slice(-4) : null,
+            pricing_plan: 'standard'
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.SURFBOARD_API_KEY}`,
+              'X-API-Secret': process.env.SURFBOARD_SECRET_KEY,
+              'Content-Type': 'application/json'
+            },
+            timeout: 15000
+          }
+        );
+
+        console.log('✅ Surfboard API Response Status:', surfboardResponse.status);
+        console.log('✅ Surfboard Response:', JSON.stringify(surfboardResponse.data, null, 2));
+
+        if (surfboardResponse.data && surfboardResponse.data.merchant_id) {
+          surfboard_merchant_id = surfboardResponse.data.merchant_id;
+          surfboard_status = surfboardResponse.data.status || 'REGISTERED';
+          merchant_status = 'APPROVED';
+          console.log('✅ Merchant registered with Surfboard:', surfboard_merchant_id);
+        }
+      } catch (error) {
+        console.warn('⚠️ Surfboard API Error:');
+        console.warn('  Status:', error.response?.status);
+        console.warn('  Message:', error.response?.data?.message || error.message);
+        console.warn('  Details:', JSON.stringify(error.response?.data, null, 2));
+
+        // Don't fail - allow merchant to be created locally
+        console.log('ℹ️ Creating merchant locally without Surfboard integration');
+      }
+    } else {
+      console.log('ℹ️ Surfboard credentials not configured, creating merchant locally');
+    }
+
+    // Create merchant in database with Surfboard info
     const merchant = await Merchant.create({
       merchant_id,
       business_name,
@@ -44,62 +98,10 @@ router.post('/onboard', async (req, res) => {
       bank_name,
       account_holder,
       account_number_last4: account_number ? account_number.slice(-4) : null,
-      status: 'PENDING',
-      surfboard_status: 'NOT_REGISTERED',
-      metadata: {
-        onboarded_at: new Date().toISOString(),
-        mode: mode || 'DEMO'
-      }
+      surfboard_merchant_id,
+      status: merchant_status,
+      surfboard_status
     });
-
-    // Call real Surfboard Merchant Onboarding API if credentials provided
-    if (process.env.SURFBOARD_API_KEY && process.env.SURFBOARD_SECRET_KEY) {
-      try {
-        console.log('🔄 Calling real Surfboard Merchant Onboarding API...');
-        console.log('Merchant ID:', process.env.SURFBOARD_MERCHANT_ID);
-
-        const surfboardResponse = await axios.post(
-          `${process.env.SURFBOARD_BASE_URL}/api/v1/merchants/onboard`,
-          {
-            merchant_id: process.env.SURFBOARD_MERCHANT_ID,
-            business_name,
-            business_type,
-            business_email,
-            owner_name,
-            owner_email,
-            owner_phone,
-            bank_account_last4: account_number ? account_number.slice(-4) : null
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.SURFBOARD_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            timeout: 10000
-          }
-        );
-
-        console.log('✅ Surfboard API Response:', surfboardResponse.status);
-
-        if (surfboardResponse.data.success || surfboardResponse.status === 200) {
-          await merchant.update({
-            surfboard_merchant_id: process.env.SURFBOARD_MERCHANT_ID,
-            surfboard_status: 'REGISTERED',
-            status: 'APPROVED'
-          });
-          console.log('✅ Merchant approved via Surfboard');
-        }
-      } catch (error) {
-        console.warn('⚠️ Surfboard API call:', error.response?.status, error.message);
-        // Store merchant data even if Surfboard call fails
-        await merchant.update({
-          surfboard_status: 'PENDING_VERIFICATION',
-          status: 'PENDING'
-        });
-      }
-    } else {
-      console.log('ℹ️ Surfboard credentials not configured, using local merchant record');
-    }
 
     res.json({
       success: true,
@@ -114,11 +116,13 @@ router.post('/onboard', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Merchant onboarding error:', error);
+    console.error('Merchant onboarding error:', error.message);
+    console.error('Error details:', error.errors || error.sql || error.stack);
     res.status(500).json({
       success: false,
       message: 'Merchant onboarding failed',
-      error: error.message
+      error: error.message,
+      details: error.errors ? error.errors.map(e => e.message) : undefined
     });
   }
 });

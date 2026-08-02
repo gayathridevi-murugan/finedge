@@ -50,11 +50,23 @@ export default function MerchantOnboarding() {
     setLoading(true);
     setError(null);
     try {
+      // Convert camelCase to snake_case for backend API
+      const submitData = {
+        business_name: formData.businessName,
+        business_type: formData.businessType,
+        business_email: formData.businessEmail,
+        business_phone: formData.businessPhone,
+        owner_name: formData.ownerName,
+        owner_email: formData.ownerEmail,
+        owner_phone: formData.ownerPhone,
+        bank_name: formData.bankName,
+        account_number: formData.accountNumber,
+        account_holder: formData.accountHolder,
+        mode: 'DEMO'
+      };
+
       // Submit to backend for Surfboard onboarding
-      const response = await apiClient.post('/merchants/onboard', {
-        ...formData,
-        mode: 'DEMO' // Mark as demo until real Surfboard credentials available
-      });
+      const response = await apiClient.post('/merchants/onboard', submitData);
 
       if (response.data.success) {
         setStatus('SUBMITTED');

@@ -5,12 +5,18 @@ import '../styles/Receipt.css';
 
 export default function PaymentSuccess() {
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
+  const storeOrderId = useCheckoutStore((state) => state.orderId);
+  const setCartId = useCheckoutStore((state) => state.setCartId);
+  const setCartItems = useCheckoutStore((state) => state.setCartItems);
+  const setCartTotal = useCheckoutStore((state) => state.setCartTotal);
+  const setOrderId = useCheckoutStore((state) => state.setOrderId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [verified, setVerified] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const hasNavigatedRef = useRef(false);
-  const orderId = new URLSearchParams(window.location.search).get('order_id');
+  // Use order ID from store (state-based routing)
+  const orderId = storeOrderId;
 
   // Verify payment on mount (runs only once)
   useEffect(() => {
@@ -56,6 +62,11 @@ export default function PaymentSuccess() {
     const timer = setTimeout(() => {
       if (!hasNavigatedRef.current) {
         hasNavigatedRef.current = true;
+        // Clear checkout state before navigating away
+        setCartId(null);
+        setCartItems([]);
+        setCartTotal(0);
+        setOrderId(null);
         setCurrentScreen('overview');
       }
     }, 5000);
@@ -69,7 +80,7 @@ export default function PaymentSuccess() {
       clearInterval(interval);
     };
     // Only depend on verified, not setCurrentScreen to prevent recreating effect
-  }, [verified]);
+  }, [verified, setCurrentScreen, setCartId, setCartItems, setCartTotal, setOrderId]);
 
   if (loading) {
     return (
@@ -96,7 +107,7 @@ export default function PaymentSuccess() {
               <h1>Payment Verification Failed</h1>
               <p className="error-text">{error}</p>
               <button
-                className="action-btn primary"
+                className="action-btn primary back-to-home"
                 onClick={() => setCurrentScreen('overview')}
               >
                 Back to Home
@@ -121,7 +132,6 @@ export default function PaymentSuccess() {
               <button
                 className="action-btn primary"
                 onClick={() => setCurrentScreen('overview')}
-                style={{ marginTop: '2rem' }}
               >
                 Continue to Dashboard
               </button>

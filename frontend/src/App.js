@@ -8,9 +8,11 @@ import './App.css';
 import OverviewDashboard from './pages/OverviewDashboard_NEW';
 import SmartNFCShoppingDashboard from './pages/SmartNFCShoppingDashboard';
 import NFCSelfCheckout from './pages/NFCSelfCheckout';
+import NFCScans from './pages/NFCScans';
 import ProductPassport from './pages/ProductPassport.jsx';
 import CartPage from './pages/CartPage';
 import GroupShopping from './pages/GroupShopping';
+import GroupPayment from './pages/GroupPayment';
 import Payment from './pages/Payment.js';
 import PaymentSuccess from './pages/PaymentSuccess.jsx';
 import PaymentCancel from './pages/PaymentCancel.jsx';
@@ -20,6 +22,7 @@ import MerchantOnboarding from './pages/MerchantOnboarding';
 import Settings from './pages/Settings';
 import DemoControls from './pages/DemoControls';
 import Welcome from './pages/Welcome.jsx';
+import NotificationCenter from './components/NotificationCenter';
 
 function AppContent() {
   const currentScreen = useCheckoutStore((state) => state.currentScreen);
@@ -32,12 +35,15 @@ function AppContent() {
   // All other screens use dashboard layout - consistent state-based routing
   return (
     <div className="app">
+      <NotificationCenter />
       {currentScreen === 'overview' && <OverviewDashboard />}
       {currentScreen === 'smart-shopping' && <SmartNFCShoppingDashboard />}
       {currentScreen === 'nfc-self-checkout' && <NFCSelfCheckout />}
+      {currentScreen === 'nfc-scans' && <NFCScans />}
       {currentScreen === 'product-passport' && <ProductPassport />}
       {currentScreen === 'cart' && <CartPage />}
       {currentScreen === 'group-shopping' && <GroupShopping />}
+      {currentScreen === 'group-payment' && <GroupPayment />}
       {currentScreen === 'payment' && <Payment />}
       {currentScreen === 'payment-success' && <PaymentSuccess />}
       {currentScreen === 'payment-cancel' && <PaymentCancel />}

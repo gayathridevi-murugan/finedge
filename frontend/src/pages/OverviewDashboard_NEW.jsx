@@ -5,45 +5,42 @@ import '../styles/OverviewDashboard_NEW.css';
 
 export default function OverviewDashboard() {
   const [metrics, setMetrics] = useState(null);
-  const [recentScans, setRecentScans] = useState([]);
-  const [recentPayments, setRecentPayments] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Function to fetch dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch all dashboard data in parallel with cache busting
+      const timestamp = new Date().getTime();
+      const [metricsRes, ordersRes, productsRes] = await Promise.all([
+        apiClient.get(`/dashboard/metrics?t=${timestamp}`),
+        apiClient.get(`/dashboard/recent-orders?t=${timestamp}`),
+        apiClient.get(`/dashboard/top-products?t=${timestamp}`)
+      ]);
+
+      if (metricsRes.data.success) setMetrics(metricsRes.data.data);
+      if (ordersRes.data.success) setRecentOrders(ordersRes.data.data.orders || []);
+      if (productsRes.data.success) setTopProducts(productsRes.data.data.topProducts || []);
+
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load and auto-refresh
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-
-        // Fetch all dashboard data in parallel
-        const [metricsRes, scansRes, paymentsRes, ordersRes, productsRes] = await Promise.all([
-          apiClient.get('/dashboard/metrics'),
-          apiClient.get('/dashboard/recent-scans'),
-          apiClient.get('/dashboard/recent-payments'),
-          apiClient.get('/dashboard/recent-orders'),
-          apiClient.get('/dashboard/top-products')
-        ]);
-
-        if (metricsRes.data.success) setMetrics(metricsRes.data.data);
-        if (scansRes.data.success) setRecentScans(scansRes.data.data.scans || []);
-        if (paymentsRes.data.success) setRecentPayments(paymentsRes.data.data.payments || []);
-        if (ordersRes.data.success) setRecentOrders(ordersRes.data.data.orders || []);
-        if (productsRes.data.success) setTopProducts(productsRes.data.data.topProducts || []);
-
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboardData();
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchDashboardData, 30000);
+    // Refresh every 10 seconds for real-time updates
+    const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -146,41 +143,8 @@ export default function OverviewDashboard() {
           </div>
         </div>
 
-        {/* SYSTEM STATUS */}
+        {/* TOP SELLING PRODUCTS */}
         <div className="dashboard-grid">
-          <div className="dashboard-section">
-            <div className="section-header">
-              <h2>System Status</h2>
-            </div>
-
-            <div className="status-grid">
-              <div className="status-item online">
-                <span className="status-dot">●</span>
-                <span className="status-name">Database</span>
-                <span className="status-text">{metrics?.databaseStatus || 'UNKNOWN'}</span>
-              </div>
-
-              <div className={`status-item ${metrics?.merchantStatus === 'ACTIVE' ? 'online' : 'offline'}`}>
-                <span className="status-dot">●</span>
-                <span className="status-name">Merchant</span>
-                <span className="status-text">{metrics?.merchantStatus || 'INACTIVE'}</span>
-              </div>
-
-              <div className="status-item online">
-                <span className="status-dot">●</span>
-                <span className="status-name">Terminals Online</span>
-                <span className="status-text">{metrics?.terminals || 0}</span>
-              </div>
-
-              <div className="status-item online">
-                <span className="status-dot">●</span>
-                <span className="status-name">API Status</span>
-                <span className="status-text">OPERATIONAL</span>
-              </div>
-            </div>
-          </div>
-
-          {/* TOP SELLING PRODUCTS */}
           <div className="dashboard-section">
             <div className="section-header">
               <h2>Top Selling Products</h2>
@@ -202,55 +166,6 @@ export default function OverviewDashboard() {
                 <p className="empty-text">No sales data yet</p>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* RECENT ACTIVITY */}
-        <div className="dashboard-section full-width">
-          <div className="section-header">
-            <h2>Recent NFC Scans</h2>
-          </div>
-
-          <div className="activity-list">
-            {recentScans.length > 0 ? (
-              recentScans.slice(0, 10).map((scan, idx) => (
-                <div key={idx} className="activity-item">
-                  <div className="activity-icon">📱</div>
-                  <div className="activity-content">
-                    <p className="activity-title">{scan.product}</p>
-                    <p className="activity-time">
-                      {new Date(scan.scannedAt).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <div className="activity-amount">₹{scan.price?.toLocaleString() || 0}</div>
-                </div>
-              ))
-            ) : (
-              <p className="empty-text">No recent scans</p>
-            )}
-          </div>
-        </div>
-
-        {/* RECENT PAYMENTS */}
-        <div className="dashboard-section">
-          <div className="section-header">
-            <h2>Recent Payments</h2>
-          </div>
-
-          <div className="payments-list">
-            {recentPayments.length > 0 ? (
-              recentPayments.slice(0, 5).map((payment, idx) => (
-                <div key={idx} className="payment-row">
-                  <div className="payment-info">
-                    <p className="payment-id">{payment.transaction_id || 'N/A'}</p>
-                    <p className="payment-status">{payment.status || 'PENDING'}</p>
-                  </div>
-                  <div className="payment-amount">₹{payment.amount?.toLocaleString() || 0}</div>
-                </div>
-              ))
-            ) : (
-              <p className="empty-text">No recent payments</p>
-            )}
           </div>
         </div>
 
