@@ -14,6 +14,137 @@ const money = (n) =>
     ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '—';
 
+// One definition per KPI tile. Keeping them in data rather than nine hand
+// written blocks keeps the markup, the expand behaviour and the ordering in
+// one place.
+const buildCards = (m) => {
+  const pct = (part, whole) =>
+    typeof part === 'number' && whole ? `${Math.round((part / whole) * 100)}%` : '—';
+
+  return [
+    {
+      key: 'sessions',
+      icon: '🛒',
+      label: 'Active Sessions',
+      value: fmt(m?.activeSessions),
+      detail: `Carts touched in the last ${m?.activeSessionWindowMinutes ?? 15} min`,
+      breakdown: [
+        { k: 'Opened today', v: fmt(m?.cartsCreatedToday) },
+        { k: 'Still active', v: fmt(m?.activeSessions) },
+        { k: 'Conversion to order', v: pct(m?.todaysOrders, m?.cartsCreatedToday) }
+      ]
+    },
+    {
+      key: 'carts',
+      icon: '🛍️',
+      label: 'Carts Opened Today',
+      value: fmt(m?.cartsCreatedToday),
+      detail: 'Since midnight',
+      breakdown: [
+        { k: 'Became orders', v: fmt(m?.todaysOrders) },
+        { k: 'Abandoned', v: fmt(typeof m?.cartsCreatedToday === 'number' && typeof m?.todaysOrders === 'number' ? m.cartsCreatedToday - m.todaysOrders : undefined) },
+        { k: 'Currently active', v: fmt(m?.activeSessions) }
+      ]
+    },
+    {
+      key: 'orders',
+      icon: '📦',
+      label: "Today's Orders",
+      value: fmt(m?.todaysOrders),
+      detail: `${fmt(m?.completedOrders)} paid · ${fmt(m?.pendingOrders)} pending · ${fmt(m?.failedOrders)} failed`,
+      breakdown: [
+        { k: 'Paid', v: `${fmt(m?.completedOrders)} (${pct(m?.completedOrders, m?.todaysOrders)})` },
+        { k: 'Pending', v: `${fmt(m?.pendingOrders)} (${pct(m?.pendingOrders, m?.todaysOrders)})` },
+        { k: 'Failed', v: `${fmt(m?.failedOrders)} (${pct(m?.failedOrders, m?.todaysOrders)})` }
+      ]
+    },
+    {
+      key: 'revenue',
+      icon: '💰',
+      label: "Today's Revenue",
+      value: `₹${money(m?.todaysRevenue)}`,
+      detail: `From ${fmt(m?.completedOrders)} paid orders`,
+      breakdown: [
+        { k: 'Paid orders', v: fmt(m?.completedOrders) },
+        {
+          k: 'Average order value',
+          v:
+            typeof m?.todaysRevenue === 'number' && m?.completedOrders
+              ? `₹${money(m.todaysRevenue / m.completedOrders)}`
+              : '—'
+        },
+        { k: 'Uncollected orders', v: fmt(typeof m?.pendingOrders === 'number' && typeof m?.failedOrders === 'number' ? m.pendingOrders + m.failedOrders : undefined) }
+      ]
+    },
+    {
+      key: 'scans',
+      icon: '📱',
+      label: 'NFC Scans',
+      value: fmt(m?.productsScanned),
+      detail: `Across ${fmt(m?.uniqueProductsScanned)} distinct products`,
+      breakdown: [
+        { k: 'Total scans', v: fmt(m?.productsScanned) },
+        { k: 'Distinct products', v: fmt(m?.uniqueProductsScanned) },
+        {
+          k: 'Scans per product',
+          v:
+            typeof m?.productsScanned === 'number' && m?.uniqueProductsScanned
+              ? (m.productsScanned / m.uniqueProductsScanned).toFixed(1)
+              : '—'
+        }
+      ]
+    },
+    {
+      key: 'checkout',
+      icon: '⏱️',
+      label: 'Avg Checkout Time',
+      value: m?.avgCheckoutMinutes != null ? `${m.avgCheckoutMinutes} min` : '—',
+      detail: 'Order created to payment captured',
+      breakdown: [
+        { k: 'Measured over', v: `${fmt(m?.completedOrders)} paid orders` },
+        { k: 'Basis', v: 'Order created → payment captured' }
+      ]
+    },
+    {
+      key: 'pending',
+      icon: '⏳',
+      label: 'Pending Payments',
+      value: fmt(m?.pendingPayments),
+      detail: 'Awaiting verification today',
+      tone: 'alert',
+      breakdown: [
+        { k: 'Pending orders', v: fmt(m?.pendingOrders) },
+        { k: 'Failed orders', v: fmt(m?.failedOrders) },
+        { k: 'Gateway', v: m?.merchantStatus === 'ACTIVE' ? 'Live' : 'Not fully configured' }
+      ]
+    },
+    {
+      key: 'exits',
+      icon: '🚪',
+      label: 'Exit Events',
+      value: fmt(m?.exitEvents),
+      detail: 'Verified at the gate today',
+      breakdown: [
+        { k: 'Verified today', v: fmt(m?.exitEvents) },
+        { k: 'Paid orders today', v: fmt(m?.completedOrders) }
+      ]
+    },
+    {
+      key: 'merchant',
+      icon: '🏪',
+      label: 'Merchant',
+      value: m?.merchantId || 'Not configured',
+      small: true,
+      detail: `${m?.merchantStatus || 'UNKNOWN'} · DB ${m?.databaseStatus || 'UNKNOWN'}`,
+      breakdown: [
+        { k: 'Status', v: m?.merchantStatus || 'UNKNOWN' },
+        { k: 'Database', v: m?.databaseStatus || 'UNKNOWN' },
+        { k: 'Terminals', v: fmt(m?.terminals) }
+      ]
+    }
+  ];
+};
+
 export default function OverviewDashboard() {
   const [metrics, setMetrics] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
@@ -21,6 +152,7 @@ export default function OverviewDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [expanded, setExpanded] = useState(null);
   const [error, setError] = useState(null);
 
   // isInitial keeps the full-page loading state for the first fetch only. Every
@@ -85,103 +217,50 @@ export default function OverviewDashboard() {
     );
   }
 
+  const cards = buildCards(metrics);
+
   return (
     <DashboardLayout pageTitle="Overview Dashboard">
       <div className="overview-dashboard">
         {/* TOP METRIC CARDS */}
         <div className="metrics-grid">
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">🛒</div>
-            <div className="metric-content">
-              <p className="metric-label">Active Sessions</p>
-              <h3 className="metric-value">{fmt(metrics?.activeSessions)}</h3>
-              <p className="metric-detail">
-                Carts active in last {metrics?.activeSessionWindowMinutes ?? 15} min
-              </p>
-            </div>
-          </div>
+          {cards.map((c) => {
+            const open = expanded === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                className={`metric-card${c.tone ? ' ' + c.tone : ''}${open ? ' is-open' : ''}`}
+                onClick={() => setExpanded(open ? null : c.key)}
+                aria-expanded={open}
+              >
+                <span className="metric-head">
+                  <span className="metric-icon" aria-hidden="true">{c.icon}</span>
+                  <span className="metric-label">{c.label}</span>
+                  <span className={`metric-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                         strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </span>
+                </span>
 
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">🛍️</div>
-            <div className="metric-content">
-              <p className="metric-label">Carts Opened Today</p>
-              <h3 className="metric-value">{fmt(metrics?.cartsCreatedToday)}</h3>
-              <p className="metric-detail">Since midnight</p>
-            </div>
-          </div>
+                <span className={`metric-value${c.small ? ' is-small' : ''}`}>{c.value}</span>
+                <span className="metric-detail">{c.detail}</span>
 
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">📦</div>
-            <div className="metric-content">
-              <p className="metric-label">Today's Orders</p>
-              <h3 className="metric-value">{fmt(metrics?.todaysOrders)}</h3>
-              <p className="metric-detail">
-                {fmt(metrics?.completedOrders)} paid · {fmt(metrics?.pendingOrders)} pending · {fmt(metrics?.failedOrders)} failed
-              </p>
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">💰</div>
-            <div className="metric-content">
-              <p className="metric-label">Today's Revenue</p>
-              <h3 className="metric-value">₹{money(metrics?.todaysRevenue)}</h3>
-              <p className="metric-detail">From {fmt(metrics?.completedOrders)} paid orders</p>
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">📱</div>
-            <div className="metric-content">
-              <p className="metric-label">NFC Scans</p>
-              <h3 className="metric-value">{fmt(metrics?.productsScanned)}</h3>
-              <p className="metric-detail">
-                Across {fmt(metrics?.uniqueProductsScanned)} distinct products
-              </p>
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">⏱️</div>
-            <div className="metric-content">
-              <p className="metric-label">Avg Checkout Time</p>
-              <h3 className="metric-value">
-                {metrics?.avgCheckoutMinutes != null ? `${metrics.avgCheckoutMinutes} min` : '—'}
-              </h3>
-              <p className="metric-detail">Order created to payment captured</p>
-            </div>
-          </div>
-
-          <div className="metric-card alert">
-            <div className="metric-icon" aria-hidden="true">⏳</div>
-            <div className="metric-content">
-              <p className="metric-label">Pending Payments</p>
-              <h3 className="metric-value">{fmt(metrics?.pendingPayments)}</h3>
-              <p className="metric-detail">Awaiting verification today</p>
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">🚪</div>
-            <div className="metric-content">
-              <p className="metric-label">Exit Events</p>
-              <h3 className="metric-value">{fmt(metrics?.exitEvents)}</h3>
-              <p className="metric-detail">Verified at the gate today</p>
-            </div>
-          </div>
-
-          <div className="metric-card">
-            <div className="metric-icon" aria-hidden="true">🏪</div>
-            <div className="metric-content">
-              <p className="metric-label">Merchant</p>
-              <h3 className="metric-value" style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>
-                {metrics?.merchantId || 'Not configured'}
-              </h3>
-              <p className="metric-detail">
-                {metrics?.merchantStatus || 'UNKNOWN'} · DB {metrics?.databaseStatus || 'UNKNOWN'}
-              </p>
-            </div>
-          </div>
+                {open && (
+                  <span className="metric-breakdown">
+                    {c.breakdown.map((row) => (
+                      <span className="metric-breakdown-row" key={row.k}>
+                        <span className="bd-key">{row.k}</span>
+                        <span className="bd-val">{row.v}</span>
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* TOP SELLING PRODUCTS */}
