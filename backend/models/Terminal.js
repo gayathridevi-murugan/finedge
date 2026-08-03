@@ -9,7 +9,7 @@ const Terminal = sequelize.define('Terminal', {
   },
   terminal_id: {
     type: DataTypes.STRING,
-    unique: true,
+    unique: 'terminal_id_unique',
     allowNull: false
   },
   merchant_id: {
@@ -47,7 +47,7 @@ const Terminal = sequelize.define('Terminal', {
   surfboard_terminal_id: {
     type: DataTypes.STRING,
     allowNull: true,
-    unique: true,
+    unique: 'surfboard_terminal_id_unique',
     comment: 'Terminal ID from Surfboard API'
   },
   nfc_reader_id: {

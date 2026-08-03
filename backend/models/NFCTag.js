@@ -3,7 +3,7 @@ const sequelize = require('../config/database');
 
 const NFCTag = sequelize.define('NFCTag', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
-  tag_id: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  tag_id: { type: DataTypes.STRING(100), allowNull: false, unique: 'nfc_tag_unique' },
   product_id: { type: DataTypes.UUID, allowNull: false },
   status: { type: DataTypes.ENUM('ACTIVE', 'INACTIVE'), defaultValue: 'ACTIVE' },
   scan_count: { type: DataTypes.INTEGER, defaultValue: 0 },

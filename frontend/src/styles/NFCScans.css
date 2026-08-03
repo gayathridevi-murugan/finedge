@@ -1,0 +1,412 @@
+/* NFC SCANS DASHBOARD */
+
+.nfc-scans-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* HEADER */
+.scans-header {
+  margin-bottom: 30px;
+}
+
+.scans-header h1 {
+  font-size: 2.5em;
+  margin: 0;
+  color: #6366f1;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 5px 0 0 0;
+  color: #64748b;
+  font-size: 0.95em;
+}
+
+/* STATS */
+.scans-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: #f1f5f9;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.9em;
+  color: #64748b;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.stat-value {
+  display: block;
+  font-size: 2em;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+/* CONTROLS */
+.scans-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 1em;
+  transition: all 0.2s ease;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-btn {
+  padding: 10px 20px;
+  background: #f1f5f9;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-btn:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+.filter-btn.active {
+  background: #6366f1;
+  color: white;
+  border-color: #6366f1;
+}
+
+/* SCANS LIST */
+.scans-list {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.no-scans {
+  padding: 40px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.scan-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.2s ease;
+}
+
+.scan-item:last-child {
+  border-bottom: none;
+}
+
+.scan-item:hover {
+  background: #f8fafc;
+}
+
+.scan-item.success {
+  border-left: 4px solid #10b981;
+}
+
+.scan-left {
+  display: flex;
+  gap: 15px;
+  flex: 1;
+}
+
+.product-emoji {
+  font-size: 2.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.scan-info {
+  flex: 1;
+}
+
+.product-name {
+  margin: 0 0 5px 0;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.scan-time {
+  margin: 0;
+  font-size: 0.9em;
+  color: #94a3b8;
+}
+
+.scan-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  text-align: right;
+}
+
+.product-price {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+.status-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.status-badge.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ACTIVITY TIMELINE */
+.activity-section {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+}
+
+.activity-section h2 {
+  margin: 0 0 20px 0;
+  font-size: 1.3em;
+  color: #1e293b;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 30px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 20px;
+  display: flex;
+  gap: 15px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -8px;
+  top: 5px;
+  width: 12px;
+  height: 12px;
+  background: #6366f1;
+  border: 3px solid white;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.timeline-content {
+  flex: 1;
+}
+
+.timeline-title {
+  margin: 0 0 5px 0;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.timeline-time {
+  margin: 0;
+  font-size: 0.9em;
+  color: #94a3b8;
+}
+
+.timeline-price {
+  font-weight: 700;
+  color: #6366f1;
+  white-space: nowrap;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .scans-header h1 {
+    font-size: 1.8em;
+  }
+
+  .scan-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .scan-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .scans-controls {
+    flex-direction: column;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .filter-buttons {
+    width: 100%;
+  }
+
+  .filter-btn {
+    flex: 1;
+  }
+}
+
+/* DARK MODE */
+@media (prefers-color-scheme: dark) {
+  .nfc-scans-container {
+    background: #1e293b;
+  }
+
+  .scans-header h1 {
+    color: #8b5cf6;
+  }
+
+  .subtitle {
+    color: #cbd5e1;
+  }
+
+  .stat-card {
+    background: #334155;
+    border-color: #475569;
+  }
+
+  .stat-label {
+    color: #cbd5e1;
+  }
+
+  .stat-value {
+    color: #8b5cf6;
+  }
+
+  .search-box input {
+    background: #334155;
+    color: #f1f5f9;
+    border-color: #475569;
+  }
+
+  .filter-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  .filter-btn:hover {
+    border-color: #8b5cf6;
+    background: #3e2c5c;
+  }
+
+  .filter-btn.active {
+    background: #8b5cf6;
+  }
+
+  .scans-list,
+  .activity-section {
+    background: #0f172a;
+    border-color: #475569;
+  }
+
+  .scan-item {
+    border-bottom-color: #334155;
+  }
+
+  .scan-item:hover {
+    background: #1e293b;
+  }
+
+  .product-emoji {
+    background: #334155;
+  }
+
+  .product-name {
+    color: #f1f5f9;
+  }
+
+  .scan-time,
+  .timeline-time {
+    color: #cbd5e1;
+  }
+
+  .product-price,
+  .timeline-price {
+    color: #8b5cf6;
+  }
+
+  .timeline::before {
+    background: #475569;
+  }
+
+  .timeline-dot {
+    background: #8b5cf6;
+  }
+
+  .timeline-title {
+    color: #f1f5f9;
+  }
+
+  .activity-section h2 {
+    color: #f1f5f9;
+  }
+}

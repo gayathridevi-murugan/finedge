@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCheckoutStore } from '../store/checkoutStore';
 import DashboardLayout from '../components/DashboardLayout';
+import apiClient from '../services/api';
 import '../styles/DemoControls.css';
 
 export default function DemoControls() {
@@ -26,9 +27,18 @@ export default function DemoControls() {
     }, 3000);
   };
 
-  const handleResetDemo = () => {
-    reset();
-    addNotification('Demo reset successfully');
+  const handleResetDemo = async () => {
+    try {
+      // Reset backend database
+      const response = await apiClient.post('/debug/reset-demo');
+      console.log('Reset response:', response.data);
+      // Reset frontend state
+      reset();
+      addNotification('Demo reset successfully - all data cleared and reseeded');
+    } catch (error) {
+      console.error('Reset failed:', error);
+      addNotification('Reset failed: ' + (error.response?.data?.error || error.message), 'error');
+    }
   };
 
   const handleSimulateNFCTap = () => {

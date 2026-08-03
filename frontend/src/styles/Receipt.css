@@ -199,6 +199,45 @@
   box-shadow: var(--shadow-xl);
 }
 
+.receipt-header .action-btn {
+  display: block;
+  margin: 2rem auto 0;
+  min-width: 200px;
+}
+
+.receipt-header .action-btn.primary {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
+  color: var(--color-text-primary);
+  padding: 14px 24px;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-lg);
+}
+
+.receipt-header .action-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+.success-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  animation: checkmark-bounce 0.6s ease-out;
+}
+
+@keyframes checkmark-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
 @media (max-width: 768px) {
   .receipt-content {
     padding: 24px;

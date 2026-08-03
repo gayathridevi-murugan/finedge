@@ -9,7 +9,7 @@ const Merchant = sequelize.define('Merchant', {
   },
   merchant_id: {
     type: DataTypes.STRING,
-    unique: true,
+    unique: 'merchant_id_unique',
     allowNull: false
   },
   business_name: {
@@ -47,7 +47,7 @@ const Merchant = sequelize.define('Merchant', {
   surfboard_merchant_id: {
     type: DataTypes.STRING,
     allowNull: true,
-    unique: true,
+    unique: 'surfboard_merchant_id_unique',
     comment: 'Merchant ID from Surfboard API'
   },
   surfboard_status: {
@@ -70,16 +70,6 @@ const Merchant = sequelize.define('Merchant', {
   metadata: {
     type: DataTypes.JSON,
     allowNull: true
-  },
-  created_at: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW
-  },
-  updated_at: {
-    type: DataTypes.DATE,
-    allowNull: false,
-    defaultValue: DataTypes.NOW
   }
 }, {
   tableName: 'merchants',

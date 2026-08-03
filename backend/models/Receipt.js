@@ -4,7 +4,7 @@ const sequelize = require('../config/database');
 const Receipt = sequelize.define('Receipt', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
   order_id: { type: DataTypes.UUID, allowNull: false },
-  receipt_number: { type: DataTypes.STRING(50), unique: true },
+  receipt_number: { type: DataTypes.STRING(50), unique: 'receipt_number_unique' },
   customer_id: DataTypes.UUID,
   subtotal: { type: DataTypes.DECIMAL(10, 2) },
   tax: { type: DataTypes.DECIMAL(10, 2) },

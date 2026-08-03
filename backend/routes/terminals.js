@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Terminal, Merchant } = require('../models');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 
 // Register a new terminal for a merchant
 router.post('/register', async (req, res) => {
@@ -45,7 +46,59 @@ router.post('/register', async (req, res) => {
     // Generate terminal ID
     const terminal_id = `TERMINAL_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // Create terminal in database
+    let surfboard_terminal_id = null;
+    let terminal_status = 'ONLINE';
+
+    // Register terminal with Surfboard if merchant is registered there
+    if (merchant.surfboard_merchant_id && process.env.SURFBOARD_API_KEY && process.env.SURFBOARD_BASE_URL) {
+      try {
+        console.log('🔄 Registering terminal with Surfboard API...');
+
+        const surfboardResponse = await axios.post(
+          `${process.env.SURFBOARD_BASE_URL}/api/v1/terminals/register`,
+          {
+            merchant_id: merchant.surfboard_merchant_id,
+            terminal_name: terminal_name || `Terminal ${terminal_id.slice(-8)}`,
+            terminal_type: terminal_type || 'NFC_SELF_CHECKOUT',
+            location,
+            nfc_reader_id,
+            security_gate_id,
+            metadata: {
+              local_terminal_id: terminal_id,
+              created_at: new Date().toISOString()
+            }
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.SURFBOARD_API_KEY}`,
+              'X-API-Secret': process.env.SURFBOARD_SECRET_KEY,
+              'Content-Type': 'application/json'
+            },
+            timeout: 15000
+          }
+        );
+
+        console.log('✅ Surfboard Terminal Registration Response:', surfboardResponse.status);
+
+        if (surfboardResponse.data && surfboardResponse.data.terminal_id) {
+          surfboard_terminal_id = surfboardResponse.data.terminal_id;
+          terminal_status = surfboardResponse.data.status || 'ONLINE';
+          console.log('✅ Terminal registered with Surfboard:', surfboard_terminal_id);
+        }
+      } catch (error) {
+        console.warn('⚠️ Surfboard Terminal Registration Error:');
+        console.warn('  Status:', error.response?.status);
+        console.warn('  Message:', error.response?.data?.message || error.message);
+        // Continue with local registration even if Surfboard fails
+        console.log('ℹ️ Continuing with local terminal registration');
+      }
+    } else if (!merchant.surfboard_merchant_id) {
+      console.log('ℹ️ Merchant not registered with Surfboard, creating local terminal only');
+    } else {
+      console.log('ℹ️ Surfboard credentials not configured, creating local terminal only');
+    }
+
+    // Create terminal in database with Surfboard info
     const terminal = await Terminal.create({
       terminal_id,
       merchant_id: merchant.id,
@@ -54,7 +107,8 @@ router.post('/register', async (req, res) => {
       location,
       nfc_reader_id,
       security_gate_id,
-      status: 'ONLINE',
+      surfboard_terminal_id,
+      status: terminal_status,
       last_online_at: new Date()
     });
 
@@ -69,6 +123,7 @@ router.post('/register', async (req, res) => {
         terminal_type: terminal.terminal_type,
         status: terminal.status,
         location: terminal.location,
+        surfboard_terminal_id: surfboard_terminal_id,
         created_at: terminal.created_at
       }
     });
