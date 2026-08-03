@@ -10,6 +10,11 @@ const router = express.Router();
 // ever created would be reported as "currently shopping".
 const ACTIVE_SESSION_WINDOW_MS = 15 * 60 * 1000;
 
+// A checkout the shopper walked away from is not "awaiting verification".
+// Payment rows are only ever moved off PENDING by a gateway callback, so an
+// abandoned session sits at PENDING for ever and the count can only grow.
+const PENDING_PAYMENT_WINDOW_MINUTES = 30;
+
 // Get dashboard metrics
 router.get('/metrics', async (req, res) => {
   try {
@@ -27,6 +32,8 @@ router.get('/metrics', async (req, res) => {
     let uniqueProductsScanned = 0;
     let avgCheckoutMinutes = null;
     let pendingPayments = 0;
+    let abandonedPayments = 0;
+    let orphanedPayments = 0;
     let exitEvents = 0;
     let merchantId = 'Not configured';
     let merchantStatus = 'INACTIVE';
@@ -116,12 +123,37 @@ router.get('/metrics', async (req, res) => {
       if (timing[0] && timing[0].sample > 0) avgCheckoutMinutes = timing[0].mins;
     } catch (e) { console.warn('Avg checkout time failed:', e.message); }
 
-    // Scoped to today so it lines up with the other "today" figures - this used
-    // to be an all-time count that only ever grew.
+    // "Awaiting verification" has to mean work someone can still act on.
+    // Counting every PENDING row reported 32 when 31 were abandoned checkouts
+    // (over 30 minutes old, order never resolved) and 3 more belonged to orders
+    // that had already been PAID, so the tile only ever climbed.
+    //   awaiting   - order still unresolved and inside the window
+    //   abandoned  - order still unresolved but past the window
+    //   orphaned   - payment left PENDING although the order already resolved
     try {
-      pendingPayments = await Payment.count({
-        where: { status: 'PENDING', createdAt: { [Op.gte]: today } }
+      const rows = await sequelize.query(`
+        SELECT
+          COUNT(*) FILTER (
+            WHERE o."payment_status" = 'PENDING'
+              AND p."createdAt" >= NOW() - (:windowMinutes * INTERVAL '1 minute')
+          )::int AS awaiting,
+          COUNT(*) FILTER (
+            WHERE o."payment_status" = 'PENDING'
+              AND p."createdAt" <  NOW() - (:windowMinutes * INTERVAL '1 minute')
+          )::int AS abandoned,
+          COUNT(*) FILTER (WHERE o."payment_status" <> 'PENDING')::int AS orphaned
+        FROM "payments" p
+        JOIN "orders" o ON o."id" = p."order_id"
+        WHERE p."status" = 'PENDING'
+          AND p."createdAt" >= :today
+      `, {
+        replacements: { today, windowMinutes: PENDING_PAYMENT_WINDOW_MINUTES },
+        type: sequelize.QueryTypes.SELECT
       });
+
+      pendingPayments = parseInt(rows[0]?.awaiting || 0);
+      abandonedPayments = parseInt(rows[0]?.abandoned || 0);
+      orphanedPayments = parseInt(rows[0]?.orphaned || 0);
     } catch (e) { console.warn('Pending payments count failed:', e.message); }
 
     try {
@@ -155,6 +187,9 @@ router.get('/metrics', async (req, res) => {
         uniqueProductsScanned,
         avgCheckoutMinutes,
         pendingPayments,
+        abandonedPayments,
+        orphanedPayments,
+        pendingPaymentWindowMinutes: PENDING_PAYMENT_WINDOW_MINUTES,
         exitEvents,
         merchantId,
         merchantStatus,

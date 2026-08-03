@@ -65,7 +65,13 @@ const buildCards = (m) => {
       icon: '⏳',
       label: 'Pending Payments',
       value: fmt(m?.pendingPayments),
-      detail: 'Awaiting verification today',
+      // The abandoned/orphaned counts are named rather than folded into the
+      // headline, so a checkout the shopper walked away from never reads as
+      // outstanding work.
+      detail:
+        `Awaiting verification (last ${m?.pendingPaymentWindowMinutes ?? 30} min)` +
+        (m?.abandonedPayments ? ` · ${fmt(m.abandonedPayments)} abandoned` : '') +
+        (m?.orphanedPayments ? ` · ${fmt(m.orphanedPayments)} unreconciled` : ''),
       tone: 'alert'
     },
     {
