@@ -12,6 +12,10 @@ export default function MerchantOnboarding() {
     businessType: '',
     businessEmail: '',
     businessPhone: '',
+    corporateId: '',
+    addressLine1: '',
+    city: '',
+    postalCode: '',
     ownerName: '',
     ownerEmail: '',
     ownerPhone: '',
@@ -56,6 +60,10 @@ export default function MerchantOnboarding() {
         business_type: formData.businessType,
         business_email: formData.businessEmail,
         business_phone: formData.businessPhone,
+        corporate_id: formData.corporateId,
+        address_line1: formData.addressLine1,
+        city: formData.city,
+        postal_code: formData.postalCode,
         owner_name: formData.ownerName,
         owner_email: formData.ownerEmail,
         owner_phone: formData.ownerPhone,
@@ -68,18 +76,32 @@ export default function MerchantOnboarding() {
       // Submit to backend for Surfboard onboarding
       const response = await apiClient.post('/merchants/onboard', submitData);
 
-      if (response.data.success) {
+      const webKybUrl = response.data?.data?.web_kyb_url;
+      if (response.data.success && webKybUrl) {
         setStatus('SUBMITTED');
-        // Simulate approval for demo
-        setTimeout(() => setStatus('APPROVED'), 2000);
+        // Full navigation to Surfboard's hosted KYB (Know Your Business) page - onboarding
+        // is only actually completed there, not by this app.
+        window.location.href = webKybUrl;
+        return;
       }
+
+      throw new Error(response.data.message || 'Onboarding did not return a Surfboard verification link');
     } catch (err) {
-      setError(err.response?.data?.message || 'Onboarding failed');
+      setError(err.response?.data?.message || err.message || 'Onboarding failed');
       console.error('Onboarding error:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('onboarding_result') === 'submitted') {
+      setStatus('SUBMITTED');
+      setStep(totalSteps);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [totalSteps]);
 
   const steps = [
     'Business Info',
@@ -189,6 +211,52 @@ export default function MerchantOnboarding() {
                     value={formData.businessPhone}
                     onChange={handleInputChange}
                     placeholder="+46 XXX XXX XXX"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Corporate/Organisation ID *</label>
+                <input
+                  type="text"
+                  name="corporateId"
+                  value={formData.corporateId}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Swedish organisationsnummer"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Store Address *</label>
+                <input
+                  type="text"
+                  name="addressLine1"
+                  value={formData.addressLine1}
+                  onChange={handleInputChange}
+                  placeholder="Street address"
+                  required
+                />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>City *</label>
+                  <input
+                    type="text"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    placeholder="City"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Postal Code *</label>
+                  <input
+                    type="text"
+                    name="postalCode"
+                    value={formData.postalCode}
+                    onChange={handleInputChange}
+                    placeholder="123 45"
                     required
                   />
                 </div>
@@ -325,9 +393,7 @@ export default function MerchantOnboarding() {
               <div className="submit-info">
                 <p>Your merchant onboarding is ready to be submitted to Surfboard.</p>
                 <div className="submit-status">
-                  <p><strong>Mode:</strong> DEMO MODE</p>
-                  <p>Real Surfboard API credentials not configured. This is a demonstration flow.</p>
-                  <p>To enable real Surfboard integration, update your Surfboard API credentials in the backend .env file.</p>
+                  <p>Submitting will redirect you to a Surfboard-hosted page to complete business (KYB) verification.</p>
                 </div>
               </div>
             </div>

@@ -35,6 +35,14 @@ export const getOrder = (orderId) => apiClient.get(`/orders/${orderId}`);
 export const processPayment = (orderId, amount, method) =>
   apiClient.post('/payments/process', { order_id: orderId, amount, payment_method: method });
 
+export const createPaymentSession = (orderId, amount, returnUrl, cancelUrl) =>
+  apiClient.post('/payments/create-session', { order_id: orderId, amount, return_url: returnUrl, cancel_url: cancelUrl });
+
+export const verifyPayment = (orderId) => apiClient.get(`/payments/verify/${orderId}`);
+
+export const lookupOrderBySurfboardOrderId = (surfboardOrderId) =>
+  apiClient.get(`/payments/lookup/${surfboardOrderId}`);
+
 export const getPayment = (orderId) => apiClient.get(`/payments/${orderId}`);
 
 // Receipt functions

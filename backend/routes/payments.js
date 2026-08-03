@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { paymentService, orderService } = require('../services');
 const { asyncHandler } = require('../middleware/errorHandler');
-const axios = require('axios');
 
-// Create payment session (returns checkout URL for Surfboard hosted page)
+// Create a Surfboard-hosted checkout session (Payment Page) and return its checkout URL.
 router.post('/create-session', asyncHandler(async (req, res) => {
-  const { order_id, amount, payment_method, return_url, cancel_url } = req.body;
+  const { order_id, amount, return_url, cancel_url } = req.body;
 
   if (!order_id || !amount) {
     return res.status(400).json({
@@ -23,71 +22,68 @@ router.post('/create-session', asyncHandler(async (req, res) => {
     });
   }
 
-  // Initialize payment in database
-  const payment = await paymentService.initiatePayment(
-    order_id,
-    amount,
-    payment_method || 'CREDIT_CARD'
-  );
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const returnUrl = return_url || `${frontendUrl}/?checkout_result=success&local_order_id=${order_id}`;
+  const cancelUrl = cancel_url || `${frontendUrl}/?checkout_result=cancelled&local_order_id=${order_id}`;
 
-  // If Surfboard is enabled, create hosted checkout session
-  if (process.env.SURFBOARD_API_KEY) {
-    try {
-      console.log('Creating Surfboard hosted payment session...');
+  const orderItems = (order.items || []).map(item => ({
+    product_id: item.product_id,
+    product_name: item.Product?.name,
+    quantity: item.quantity,
+    unit_price: parseFloat(item.unit_price),
+    subtotal: parseFloat(item.subtotal)
+  }));
 
-      const surfboardResponse = await axios.post(
-        `${process.env.SURFBOARD_BASE_URL}/api/v1/checkout-sessions`,
-        {
-          merchant_id: process.env.SURFBOARD_MERCHANT_ID,
-          amount: Math.round(amount * 100), // Convert to cents
-          currency: 'SEK',
-          order_id: order_id,
-          payment_method: payment_method || 'CREDIT_CARD',
-          return_url: return_url || `http://localhost:3000/checkout/success?order_id=${order_id}`,
-          cancel_url: cancel_url || `http://localhost:3000/checkout/cancel?order_id=${order_id}`,
-          metadata: {
-            order_number: order.order_number,
-            timestamp: new Date().toISOString()
-          }
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.SURFBOARD_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 10000
-        }
-      );
-
-      if (surfboardResponse.data.checkout_url) {
-        return res.json({
-          success: true,
-          data: {
-            message: 'Payment session created - redirect to Surfboard',
-            payment_id: payment.id,
-            checkout_url: surfboardResponse.data.checkout_url,
-            session_id: surfboardResponse.data.session_id,
-            redirect: true
-          }
-        });
-      }
-    } catch (error) {
-      console.warn('Surfboard hosted checkout failed:', error.message);
-      // Fall through to simulated payment
-    }
-  }
-
-  // Fallback: return demo checkout URL
-  const demoCheckoutUrl = `http://localhost:3000/checkout/demo?payment_id=${payment.id}&order_id=${order_id}&amount=${amount}`;
+  const session = await paymentService.createSurfboardCheckout(order_id, amount, orderItems, returnUrl, cancelUrl);
 
   res.json({
     success: true,
     data: {
-      message: 'Demo payment session created - Surfboard API not configured',
-      payment_id: payment.id,
-      checkout_url: demoCheckoutUrl,
-      mode: 'DEMO',
-      redirect: true
+      message: 'Surfboard checkout session created - redirect to Surfboard',
+      payment_id: session.paymentId,
+      checkout_url: session.checkoutUrl,
+      surfboard_order_id: session.surfboardOrderId
+    }
+  });
+}));
+
+// Resolve our local order id from Surfboard's own order id - used as a fallback on the
+// return redirect in case Surfboard's redirect strips our custom query params.
+router.get('/lookup/:surfboard_order_id', asyncHandler(async (req, res) => {
+  const { surfboard_order_id } = req.params;
+  const orderId = await paymentService.findOrderIdBySurfboardOrderId(surfboard_order_id);
+
+  if (!orderId) {
+    return res.status(404).json({
+      success: false,
+      error: { message: 'No local order found for that Surfboard order id' }
+    });
+  }
+
+  res.json({ success: true, data: { order_id: orderId } });
+}));
+
+// Re-verify payment status with Surfboard and finalize the local order/payment.
+router.get('/verify/:order_id', asyncHandler(async (req, res) => {
+  const { order_id } = req.params;
+  const { payment, order } = await paymentService.finalizePaymentFromOrder(order_id);
+
+  res.json({
+    success: true,
+    data: {
+      order_status: order.payment_status,
+      payment: {
+        id: payment.id,
+        amount: parseFloat(payment.amount),
+        status: payment.status,
+        transaction_id: payment.transaction_id
+      },
+      order: {
+        id: order.id,
+        order_number: order.order_number,
+        total_amount: parseFloat(order.total_amount),
+        payment_status: order.payment_status
+      }
     }
   });
 }));
