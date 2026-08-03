@@ -7,11 +7,16 @@
 }
 
 /* JOURNEY INDICATOR */
+/* Equal-width grid columns keep the circles evenly spaced no matter how
+   long each label is. A flex row sized each step to its own label, which
+   pushed step 1 away from steps 2-4. gap stays 0 so the connector line
+   maths below lands exactly on the next circle's centre. */
 .journey-indicator {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  align-items: start;
+  padding: var(--space-4) var(--space-3);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -22,13 +27,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
   position: relative;
+  min-width: 0;
 }
 
 .step-circle {
   width: 40px;
   height: 40px;
+  flex: 0 0 40px;
   background: var(--color-primary-bg);
   border: 2px solid var(--color-border);
   border-radius: 50%;
@@ -36,32 +43,48 @@
   align-items: center;
   justify-content: center;
   font-weight: var(--weight-bold);
-  color: var(--color-text-secondary);
-  transition: all var(--transition-base);
-  font-size: 14px;
+  font-size: var(--text-sm);
+  line-height: 1;
+  /* No colour transition here on purpose: these colours come from theme
+     custom properties, and transitioning them stops Chrome re-resolving the
+     new value on a theme switch - the numbers kept the previous theme's
+     colour and became unreadable. */
 }
 
-.step-circle.active {
+/* Scoped to the parent (specificity 0,2,0) so the step numbers keep their
+   theme-aware colour. At 0,1,0 something later in the cascade was pinning
+   the idle numbers to the light-theme grey, which measured 1.34:1 against
+   the circle in dark mode - effectively invisible. */
+.journey-indicator .step-circle {
+  color: var(--color-text-primary);
+}
+
+/* --color-primary is the same indigo in both themes, so the number on top of
+   it must be white in both. Using --color-text-primary made this near-black
+   on indigo in light mode. */
+.journey-indicator .step-circle.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: var(--color-text-primary);
-  box-shadow: 0 0 20px var(--color-primary-bg-strong);
+  color: #ffffff;
 }
 
-.step-title {
-  font-size: 11px;
+.journey-indicator .step-title {
+  font-size: var(--text-xs);
+  line-height: 1.3;
   color: var(--color-text-secondary);
   text-align: center;
-  white-space: nowrap;
   margin: 0;
   font-weight: var(--weight-medium);
+  max-width: 100%;
 }
 
+/* Spans the gap between this circle's edge and the next circle's edge.
+   right: calc(-50% + 28px) reaches into the following equal-width column. */
 .step-line {
   position: absolute;
   top: 20px;
-  left: 100%;
-  width: 30px;
+  left: calc(50% + 28px);
+  right: calc(-50% + 28px);
   height: 2px;
   background: var(--color-border);
 }
@@ -102,53 +125,32 @@
 }
 
 /* NFC ANIMATION */
+/* The grid stretches this card to match the taller cart column, so the reader
+   needs to centre itself in whatever height it is given. Without
+   justify-content it defaulted to flex-start and the icon, status text and
+   button sat at the top with all the empty space below them. */
 .nfc-reader-container {
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
+  justify-content: center;
   flex: 1;
 }
 
+/* Sized to its content. This used to be a fixed 140x140 box holding only the
+   emoji, and the decorative rings it was sized for were display:none - the
+   leftover empty space is what pushed the icon high above the status text. */
 .nfc-animation {
-  position: relative;
-  width: 140px;
-  height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.scanner-ring {
-  position: absolute;
-  border: 3px solid var(--color-info);
-  border-radius: 50%;
-  opacity: 0.3;
-  display: none;
-}
-
-.scanner-ring.ring1 {
-  width: 70px;
-  height: 70px;
-}
-
-.scanner-ring.ring2 {
-  width: 100px;
-  height: 100px;
-}
-
-.scanner-ring.ring3 {
-  width: 130px;
-  height: 130px;
-}
-
-.scanner-ring.active {
+  padding: var(--space-2) 0;
 }
 
 .nfc-icon {
-  font-size: 3.2rem;
-  position: relative;
-  z-index: 2;
+  font-size: 3rem;
+  line-height: 1;
 }
 
 /* NFC STATUS */
@@ -164,16 +166,34 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
+/* Genuine in-progress indicator for the NFC read. It was display:none with no
+   animation, so the reader gave no spinner feedback at all while scanning. */
 .status-spinner {
   width: 20px;
   height: 20px;
   border: 2px solid var(--color-primary-bg-medium);
   border-top-color: var(--color-primary);
   border-radius: 50%;
+  animation: nfc-status-spin 0.7s linear infinite;
+}
+
+@keyframes nfc-status-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Once the read resolves there is nothing left to wait for. */
+.status-animation.status-found .status-spinner,
+.status-animation.status-added .status-spinner {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-spinner {
+    animation: none;
+  }
 }
 
 .status-text {
@@ -490,13 +510,10 @@
   }
 }
 
+/* Tablet - the 4 columns stay equal, only the scale comes down. */
 @media (max-width: 768px) {
   .journey-indicator {
-    gap: 16px;
-  }
-
-  .step-line {
-    width: 16px;
+    padding: var(--space-3) var(--space-2);
   }
 
   .checkout-area {
@@ -504,13 +521,8 @@
     gap: 8px;
   }
 
-  .nfc-animation {
-    width: 120px;
-    height: 120px;
-  }
-
   .nfc-icon {
-    font-size: 2.8rem;
+    font-size: 2.6rem;
   }
 
   .cart-items-list {
@@ -518,20 +530,26 @@
   }
 }
 
+/* Mobile - keep all four steps on one row, shrink the circle and drop the
+   connector lines rather than wrapping (wrapping is what broke alignment). */
 @media (max-width: 480px) {
   .journey-indicator {
-    flex-wrap: wrap;
-    gap: 12px;
-    padding: 8px 12px;
+    padding: var(--space-3) var(--space-1);
+  }
+
+  .step-circle {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    font-size: var(--text-xs);
+  }
+
+  .step-title {
+    font-size: 10px;
   }
 
   .step-line {
     display: none;
-  }
-
-  .nfc-animation {
-    width: 100px;
-    height: 100px;
   }
 
   .nfc-icon {

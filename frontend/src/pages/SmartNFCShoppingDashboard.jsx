@@ -175,15 +175,12 @@ export default function SmartNFCShoppingDashboard() {
   };
 
   return (
-    <DashboardLayout pageTitle="🛍️ Smart NFC Fashion Shopping" pageIcon="👕">
+    <DashboardLayout pageTitle="Smart NFC Fashion Shopping">
       <div className="smart-nfc-shopping">
         {/* NFC INTERACTION AREA */}
         <div className="nfc-interaction-section">
           <div className="nfc-scanner-box">
             <div className={`nfc-animation ${scanning ? 'scanning' : ''}`}>
-              <div className="nfc-scanner-ring ring1"></div>
-              <div className="nfc-scanner-ring ring2"></div>
-              <div className="nfc-scanner-ring ring3"></div>
               <div className="nfc-icon-center">📱</div>
             </div>
 

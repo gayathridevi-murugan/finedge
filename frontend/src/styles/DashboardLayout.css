@@ -8,8 +8,16 @@
   margin-left: 0;
 }
 
+/* Reserves room for the fixed sidebar. Must be kept in step with the
+   sidebar width at every breakpoint, and dropped to 0 once the sidebar
+   becomes an overlay drawer - see the media queries at the end of this file. */
 .dashboard-layout .dashboard-main {
   margin-left: 240px;
+}
+
+/* Collapsed rail is 80px, so the content must follow it in. */
+.dashboard-layout .dashboard-sidebar.closed + .dashboard-main {
+  margin-left: 80px;
 }
 
 /* SIDEBAR */
@@ -49,11 +57,6 @@
   transition: all var(--transition-base);
 }
 
-.logo-icon {
-  font-size: 2rem;
-  display: inline-block;
-}
-
 .logo-text {
   min-width: 0;
 }
@@ -81,11 +84,11 @@
   background: none;
   border: none;
   color: var(--color-text-secondary);
-  font-size: var(--text-xl);
   cursor: pointer;
   padding: 0;
-  transition: color var(--transition-base);
   display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-toggle:hover {
@@ -102,49 +105,9 @@
   overflow-y: auto;
 }
 
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-base);
-  border-left: 3px solid transparent;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.nav-item:hover {
-  background: var(--color-primary-bg);
-  color: var(--color-primary);
-}
-
-.nav-item.active {
-  background: var(--color-primary-bg-medium);
-  color: var(--color-primary);
-  border-left-color: var(--color-primary);
-  font-weight: var(--weight-semibold);
-}
-
-.nav-icon {
-  font-size: var(--text-lg);
-  flex-shrink: 0;
-}
-
-.nav-label {
-  flex: 1;
-  text-align: left;
-}
-
-.dashboard-sidebar.closed .nav-label {
-  display: none;
-}
+/* .nav-item / .nav-label live in SidebarNavigation.css. They used to be
+   declared here as well at identical specificity, so which file won came down
+   to import order - editing the sidebar stylesheet appeared to do nothing. */
 
 /* SIDEBAR FOOTER */
 .sidebar-footer {
@@ -202,7 +165,13 @@
   gap: var(--space-2);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
-  overflow-x: auto;
+  /* Must stay visible. This was overflow-x:auto, and setting either axis to a
+     non-visible value forces the other to compute as auto, so the 60px tall
+     header clipped the notification and profile panels that hang below it -
+     only the top few pixels of each were ever on screen. */
+  overflow: visible;
+  position: relative;
+  z-index: 50;
 }
 
 .header-left {
@@ -228,11 +197,6 @@
   align-items: center;
   gap: var(--space-3);
   min-width: 0;
-}
-
-.page-icon {
-  font-size: var(--text-3xl);
-  flex-shrink: 0;
 }
 
 .header-title h1 {
@@ -307,17 +271,30 @@
   background: none;
   border: none;
   color: var(--color-text-primary);
-  font-size: var(--text-xl);
   cursor: pointer;
   padding: var(--space-2);
-  transition: all var(--transition-base);
+  /* Only background transitions. `all` included colour, and transitioning a
+     value that comes from a theme custom property stops Chrome re-resolving
+     it on a theme switch - the icons stayed dark on the dark header. */
+  transition: background var(--transition-base);
   position: relative;
   border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notification-btn:hover,
 .profile-btn:hover {
   background: var(--color-primary-bg);
+}
+
+/* Line icons replacing the emoji these buttons used to render. They inherit
+   currentColor so they track the theme automatically. */
+.header-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .notification-badge {
@@ -360,6 +337,11 @@
     width: 200px;
   }
 
+  /* Follow the narrower sidebar. */
+  .dashboard-layout .dashboard-main {
+    margin-left: 200px;
+  }
+
   .dashboard-header {
     padding: 0 var(--space-3);
     gap: var(--space-3);
@@ -392,14 +374,20 @@
   }
 
   .sidebar-toggle {
-    display: block;
+    display: flex;
   }
 
   .mobile-menu-btn {
     display: block;
   }
 
-  .dashboard-main {
+  /* The sidebar is an overlay drawer from here down, so it must stop
+     reserving horizontal space. Without this the content kept a 240px left
+     margin on a 375px screen and had only 135px to lay out in - which is
+     what forced the whole app to be zoomed out to fit. */
+  .dashboard-layout .dashboard-main,
+  .dashboard-layout .dashboard-sidebar.closed + .dashboard-main {
+    margin-left: 0;
     width: 100%;
   }
 
@@ -427,9 +415,12 @@
   }
 }
 
+/* Single 480px block. There were two of these declaring the same properties,
+   so the sidebar width silently resolved to whichever came last. */
 @media (max-width: 480px) {
   .dashboard-sidebar {
-    width: 200px;
+    width: 80%;
+    max-width: 280px;
   }
 
   .dashboard-header {
@@ -438,36 +429,13 @@
     gap: var(--space-2);
   }
 
-  .page-icon {
-    font-size: var(--text-2xl);
-  }
-
   .header-title h1 {
     font-size: var(--text-base);
   }
 
-  .notification-btn,
-  .profile-btn {
-    font-size: var(--text-lg);
-  }
-}
-
-@media (max-width: 480px) {
-  .dashboard-sidebar {
-    width: 70%;
-  }
-
-  .page-icon {
-    font-size: var(--text-2xl);
-  }
-
-  .header-title h1 {
-    font-size: var(--text-base);
-  }
-
-  .notification-btn,
-  .profile-btn {
-    font-size: var(--text-lg);
+  .header-icon {
+    width: 18px;
+    height: 18px;
   }
 }
 

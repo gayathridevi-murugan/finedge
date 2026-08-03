@@ -6,6 +6,13 @@ class PaymentService {
   constructor() {
     this.surfboardEnabled = !!(process.env.SURFBOARD_API_KEY && process.env.SURFBOARD_SECRET_KEY);
     this.surfboardUrl = process.env.SURFBOARD_BASE_URL || 'https://api.surfboardpayments.com';
+    // Hosted checkout (Payment Page) additionally requires a merchant id and a Payment Page terminal id
+    this.surfboardCheckoutEnabled = !!(
+      process.env.SURFBOARD_API_KEY &&
+      process.env.SURFBOARD_SECRET_KEY &&
+      process.env.SURFBOARD_MERCHANT_ID &&
+      process.env.SURFBOARD_TERMINAL_ID
+    );
   }
 
   generateSignature(payload, secret) {
@@ -77,6 +84,153 @@ class PaymentService {
       console.error('Payment processing error:', error.message);
       return await this.failPayment(orderId, error.message || 'Payment processing failed');
     }
+  }
+
+  // Creates a Surfboard-hosted Payment Page session (POST /merchants/:merchantId/orders)
+  // and returns the checkout URL the customer must be redirected to.
+  async createSurfboardCheckout(orderId, amount, orderItems, returnUrl, cancelUrl) {
+    const order = await Order.findByPk(orderId);
+    if (!order) throw new Error(`Order not found: ${orderId}`);
+
+    const payment = await this.initiatePayment(orderId, amount, 'CARD');
+
+    if (!this.surfboardCheckoutEnabled) {
+      const err = new Error(
+        'Surfboard checkout is not fully configured (missing SURFBOARD_TERMINAL_ID, or another SURFBOARD_* env var, in backend/.env). Cannot create a real Surfboard TEST payment session.'
+      );
+      err.statusCode = 503;
+      throw err;
+    }
+
+    const amountMinor = Math.round(amount * 100);
+    // Surfboard requires both `total` and `regular` on each line's amount - omitting `regular`
+    // fails with "Mandatory Properties missing regular" even though it's undocumented.
+    const orderLines = (orderItems && orderItems.length > 0)
+      ? orderItems.map((item, idx) => {
+          const lineTotal = Math.round((item.subtotal ?? item.unit_price * (item.quantity || 1)) * 100);
+          return {
+            id: item.product_id || `LINE-${idx + 1}`,
+            name: item.product_name || item.name || `Item ${idx + 1}`,
+            quantity: item.quantity || 1,
+            amount: { total: lineTotal, regular: lineTotal, currency: '752' } // SEK
+          };
+        })
+      : [{
+          id: 'ORDER-TOTAL',
+          name: `Order ${order.order_number}`,
+          quantity: 1,
+          amount: { total: amountMinor, regular: amountMinor, currency: '752' }
+        }];
+
+    const payload = {
+      'terminal$id': process.env.SURFBOARD_TERMINAL_ID,
+      orderLines,
+      controlFunctions: {
+        initiatePaymentsOptions: { paymentMethod: 'CARD', amount: amountMinor },
+        redirectUrl: returnUrl,
+        failureRedirectUrl: cancelUrl
+      }
+    };
+
+    // NOTE: this endpoint is flat (/orders) - the merchant is identified by the MERCHANT-ID
+    // header, not a path segment. A nested /merchants/:id/orders path 404s on the real API.
+    const response = await axios.post(
+      `${this.surfboardUrl}/orders`,
+      payload,
+      {
+        headers: {
+          'API-KEY': process.env.SURFBOARD_API_KEY,
+          'API-SECRET': process.env.SURFBOARD_SECRET_KEY,
+          'MERCHANT-ID': process.env.SURFBOARD_MERCHANT_ID,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      }
+    );
+
+    if (response.data?.status === 'ERROR') {
+      const err = new Error(response.data.message || 'Surfboard rejected the order creation request');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const data = response.data?.data || {};
+    const checkoutUrl = data.paymentPageLink || data.paymentPageUrl || data.checkoutUrl || data.url || data.link || data.shortLink || data.paymentLink;
+    const surfboardOrderId = data.orderId || data.id;
+
+    if (!checkoutUrl) {
+      console.error('Unexpected Surfboard create-order response shape:', JSON.stringify(response.data));
+      const err = new Error(
+        'Surfboard did not return a recognizable checkout URL. Check backend logs for the raw response shape.'
+      );
+      err.statusCode = 502;
+      throw err;
+    }
+
+    if (surfboardOrderId) {
+      await payment.update({ transaction_id: surfboardOrderId });
+    }
+
+    return { checkoutUrl, surfboardOrderId, paymentId: payment.id };
+  }
+
+  // GET /orders/:orderId/status - flat endpoint, merchant identified via MERCHANT-ID header.
+  async getSurfboardOrderStatus(surfboardOrderId) {
+    const response = await axios.get(
+      `${this.surfboardUrl}/orders/${surfboardOrderId}/status`,
+      {
+        headers: {
+          'API-KEY': process.env.SURFBOARD_API_KEY,
+          'API-SECRET': process.env.SURFBOARD_SECRET_KEY,
+          'MERCHANT-ID': process.env.SURFBOARD_MERCHANT_ID
+        },
+        timeout: 15000
+      }
+    );
+    if (response.data?.status === 'ERROR') {
+      const err = new Error(response.data.message || 'Surfboard rejected the order status request');
+      err.statusCode = 400;
+      throw err;
+    }
+    return response.data?.data || {};
+  }
+
+  async findOrderIdBySurfboardOrderId(surfboardOrderId) {
+    const payment = await Payment.findOne({ where: { transaction_id: surfboardOrderId } });
+    return payment ? payment.order_id : null;
+  }
+
+  // Re-verifies the real payment status with Surfboard and finalizes our local Payment/Order.
+  // Idempotent: safe to call multiple times (e.g. if the success page is refreshed).
+  async finalizePaymentFromOrder(orderId) {
+    const payment = await Payment.findOne({ where: { order_id: orderId } });
+    if (!payment) throw new Error(`Payment not found for order: ${orderId}`);
+
+    if (payment.status === 'CAPTURED' || payment.status === 'FAILED') {
+      const order = await Order.findByPk(orderId);
+      return { payment, order };
+    }
+
+    if (!this.surfboardCheckoutEnabled || !payment.transaction_id) {
+      const err = new Error('Cannot verify payment: Surfboard checkout was not used for this order.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const status = await this.getSurfboardOrderStatus(payment.transaction_id);
+    const orderStatus = status.orderStatus;
+    const surfboardPaymentId = status.payments?.[0]?.paymentId || payment.transaction_id;
+
+    if (orderStatus === 'PAYMENT_COMPLETED' || orderStatus === 'PARTIAL_PAYMENT_COMPLETED') {
+      await this.capturePayment(orderId, surfboardPaymentId);
+    } else if (orderStatus === 'PAYMENT_FAILED' || orderStatus === 'PAYMENT_CANCELLED') {
+      await this.failPayment(orderId, `Surfboard order status: ${orderStatus}`);
+    }
+    // Otherwise (PENDING / PAYMENT_PROCESSED) the payment isn't final yet - leave it PENDING.
+
+    const finalPayment = await Payment.findOne({ where: { order_id: orderId } });
+    const order = await Order.findByPk(orderId);
+    return { payment: finalPayment, order };
   }
 
   async capturePayment(orderId, transactionId) {

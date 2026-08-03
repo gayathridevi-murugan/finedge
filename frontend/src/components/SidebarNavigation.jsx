@@ -8,45 +8,45 @@ export default function SidebarNavigation({ sidebarOpen, onNavigate, currentScre
       id: 'home',
       title: 'HOME',
       items: [
-        { id: 'overview', label: 'Dashboard', icon: '📊' },
+        { id: 'overview', label: 'Dashboard' },
       ]
     },
     {
       id: 'nfc',
       title: 'SELF CHECKOUT',
       items: [
-        { id: 'smart-shopping', label: 'Smart NFC Shopping', icon: '📱' },
-        { id: 'nfc-self-checkout', label: 'NFC Self Checkout', icon: '🏪' },
-        { id: 'nfc-scans', label: 'NFC Scans', icon: '📡' },
+        { id: 'smart-shopping', label: 'Smart NFC Shopping' },
+        { id: 'nfc-self-checkout', label: 'NFC Self Checkout' },
+        { id: 'nfc-scans', label: 'NFC Scans' },
       ]
     },
     {
       id: 'shopping',
       title: 'SHOPPING',
       items: [
-        { id: 'group-shopping', label: 'Group Shopping', icon: '👥' },
+        { id: 'group-shopping', label: 'Group Shopping' },
       ]
     },
     {
       id: 'security',
       title: 'SECURITY',
       items: [
-        { id: 'exit-verification', label: 'Exit Verification', icon: '🚪' },
+        { id: 'exit-verification', label: 'Exit Verification' },
       ]
     },
     {
       id: 'merchant',
       title: 'MERCHANT',
       items: [
-        { id: 'merchant-onboarding', label: 'Onboarding', icon: '🏢' },
+        { id: 'merchant-onboarding', label: 'Onboarding' },
       ]
     },
     {
       id: 'system',
       title: 'SYSTEM',
       items: [
-        { id: 'demo-controls', label: 'Demo Controls', icon: '⚙️' },
-        { id: 'settings', label: 'Settings', icon: '⚙️' },
+        { id: 'demo-controls', label: 'Demo Controls' },
+        { id: 'settings', label: 'Settings' },
       ]
     },
   ];
@@ -69,8 +69,11 @@ export default function SidebarNavigation({ sidebarOpen, onNavigate, currentScre
                 title={item.label}
                 style={{ cursor: 'pointer', pointerEvents: 'auto' }}
               >
-                <span className="nav-icon">{item.icon}</span>
-                {sidebarOpen && <span className="nav-label">{item.label}</span>}
+                {/* Collapsed rail has no room for the label, so it falls back to
+                    a letter monogram rather than a decorative icon. */}
+                {sidebarOpen
+                  ? <span className="nav-label">{item.label}</span>
+                  : <span className="nav-initial" aria-hidden="true">{item.label.charAt(0)}</span>}
               </button>
             ))}
           </div>

@@ -174,8 +174,21 @@
 
 /* RESPONSIVE */
 @media (max-width: 480px) {
+  /* Pinned to the viewport rather than the button's container. Anchoring a
+     near-full-width panel to the container put its left edge off screen,
+     because the container sits inside the header's right padding. */
   .notification-dropdown {
-    width: calc(100vw - 40px);
-    right: -200px;
+    position: fixed;
+    top: 66px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    margin-top: 0;
+    max-height: calc(100vh - 84px);
+  }
+
+  .notifications-list {
+    max-height: calc(100vh - 150px);
   }
 }

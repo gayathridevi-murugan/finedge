@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCheckoutStore } from '../store/checkoutStore';
-import { api, processPayment, createOrderFromCart } from '../services/api';
+import { createPaymentSession, createOrderFromCart } from '../services/api';
 import DashboardLayout from '../components/DashboardLayout';
 import '../styles/Payment.css';
 
@@ -27,6 +27,7 @@ export default function Payment() {
   const setOrderId = useCheckoutStore((state) => state.setOrderId);
   const setOrderNumber = useCheckoutStore((state) => state.setOrderNumber);
   const setPaymentStatus = useCheckoutStore((state) => state.setPaymentStatus);
+  const error = useCheckoutStore((state) => state.error);
   const setError = useCheckoutStore((state) => state.setError);
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,56 +40,38 @@ export default function Payment() {
   const handlePayNow = async () => {
     try {
       setIsProcessing(true);
+      setError(null);
 
       let finalOrderId = orderId;
       let finalOrderNumber = orderNumber;
 
       // Create order only if it doesn't exist
       if (!finalOrderId) {
-        try {
-          const orderResponse = await createOrderFromCart(cartId, null);
-          finalOrderId = orderResponse.data.data.order.id;
-          finalOrderNumber = orderResponse.data.data.order.order_number;
-          setOrderId(finalOrderId);
-          setOrderNumber(finalOrderNumber);
-        } catch (orderError) {
-          console.warn('Could not create order from API, using demo mode');
-          finalOrderId = 'ORD-' + Math.random().toString(36).substr(2, 9);
-          finalOrderNumber = 'ORD-' + Date.now();
-        }
-      }
-
-      const paymentResponse = await processPayment(finalOrderId, finalTotal, 'card');
-
-      // In demo mode, force payment success
-      if (paymentResponse.data.success || !paymentResponse.data.success) {
-        // Try payment verification first
-        try {
-          await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/demo-payment/verify-demo`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              payment_id: paymentResponse.data.data?.payment?.id,
-              order_id: finalOrderId,
-              amount: finalTotal,
-              status: 'SUCCESS'
-            })
-          });
-        } catch (verifyError) {
-          console.warn('Payment verification not available');
-        }
-
-        // Always show success in demo mode
-        setPaymentStatus('SUCCESS');
+        const orderResponse = await createOrderFromCart(cartId, null);
+        finalOrderId = orderResponse.data.data.order.id;
+        finalOrderNumber = orderResponse.data.data.order.order_number;
         setOrderId(finalOrderId);
         setOrderNumber(finalOrderNumber);
-        setCurrentScreen('payment-success');
       }
+
+      // Surfboard redirects here with ?local_order_id=... appended - App.js restores state from it.
+      const returnUrl = `${window.location.origin}${window.location.pathname}?checkout_result=success&local_order_id=${finalOrderId}`;
+      const cancelUrl = `${window.location.origin}${window.location.pathname}?checkout_result=cancelled&local_order_id=${finalOrderId}`;
+
+      const sessionResponse = await createPaymentSession(finalOrderId, finalTotal, returnUrl, cancelUrl);
+      const checkoutUrl = sessionResponse.data.data.checkout_url;
+
+      if (!checkoutUrl) {
+        throw new Error('Surfboard did not return a checkout URL');
+      }
+
+      // Full navigation to the Surfboard-hosted payment page - customer completes the TEST payment there.
+      window.location.href = checkoutUrl;
 
     } catch (error) {
       console.error('Payment error:', error);
       setPaymentStatus('FAILED');
-      setError(error.message || 'Payment processing failed');
+      setError(error.response?.data?.error?.message || error.message || 'Payment processing failed');
       setIsProcessing(false);
     }
   };
@@ -153,6 +136,10 @@ export default function Payment() {
               <span className="method-note">Demo Mode - Simulated Payment</span>
             </div>
           </div>
+
+          {error && (
+            <p style={{ color: 'var(--color-error)', marginTop: '12px' }}>{error}</p>
+          )}
 
           <button
             className="pay-button"

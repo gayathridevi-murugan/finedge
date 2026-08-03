@@ -23,7 +23,7 @@ export default function ReceiptDashboard() {
     };
 
     return (
-      <DashboardLayout pageTitle="Digital Receipt" pageIcon="📄">
+      <DashboardLayout pageTitle="Digital Receipt">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">
@@ -97,7 +97,7 @@ export default function ReceiptDashboard() {
   } catch (error) {
     console.error('Receipt render error:', error);
     return (
-      <DashboardLayout pageTitle="Digital Receipt" pageIcon="📄">
+      <DashboardLayout pageTitle="Digital Receipt">
         <div className="receipt-container">
           <div className="receipt-content">
             <h1>Receipt Error</h1>

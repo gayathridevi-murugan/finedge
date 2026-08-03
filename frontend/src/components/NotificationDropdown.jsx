@@ -1,62 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { useCheckoutStore } from '../store/checkoutStore';
-import { useNotificationStore } from '../store/notificationStore';
+import React from 'react';
 import '../styles/NotificationDropdown.css';
 
-export default function NotificationDropdown({ isOpen, onClose }) {
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'success', title: 'NFC Product Scanned', message: 'Nike Shoes added to cart', timestamp: new Date(Date.now() - 300000) },
-    { id: 2, type: 'success', title: 'Product Added', message: 'Item added to your cart successfully', timestamp: new Date(Date.now() - 600000) },
-  ]);
+const ICONS = { success: '✓', error: '✕', warning: '⚠', info: '•' };
 
-  const handleNotificationClick = (id) => {
-    setNotifications(notifications.filter(n => n.id !== id));
-  };
+// "3 min ago" style, derived from the event's real timestamp.
+function timeAgo(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return '';
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
 
-  const clearAll = () => {
-    setNotifications([]);
-  };
-
+export default function NotificationDropdown({
+  isOpen,
+  activity = [],
+  loading = false,
+  error = null,
+  dismissed = [],
+  onDismiss,
+  onClearAll
+}) {
   if (!isOpen) return null;
+
+  const visible = activity.filter((a) => !dismissed.includes(a.id));
 
   return (
     <div className="notification-dropdown">
       <div className="dropdown-header">
-        <h3>Notifications</h3>
-        {notifications.length > 0 && (
-          <button className="clear-btn" onClick={clearAll}>Clear All</button>
+        <h3>Activity</h3>
+        {visible.length > 0 && (
+          <button className="clear-btn" onClick={onClearAll}>Clear All</button>
         )}
       </div>
 
       <div className="notifications-list">
-        {notifications.length > 0 ? (
-          notifications.map(notif => (
-            <div key={notif.id} className={`notification-item ${notif.type}`}>
-              <div className="notification-icon">
-                {notif.type === 'success' && '✓'}
-                {notif.type === 'error' && '✕'}
-                {notif.type === 'warning' && '⚠'}
-              </div>
-              <div className="notification-content">
-                <p className="notification-title">{notif.title}</p>
-                <p className="notification-message">{notif.message}</p>
-                <span className="notification-time">
-                  {Math.round((Date.now() - notif.timestamp) / 60000)} min ago
-                </span>
-              </div>
-              <button
-                className="notification-close"
-                onClick={() => handleNotificationClick(notif.id)}
-              >
-                ✕
-              </button>
-            </div>
-          ))
-        ) : (
+        {error && (
           <div className="no-notifications">
-            <p>No notifications</p>
+            <p>Could not load activity</p>
           </div>
         )}
+
+        {!error && loading && visible.length === 0 && (
+          <div className="no-notifications">
+            <p>Loading…</p>
+          </div>
+        )}
+
+        {!error && !loading && visible.length === 0 && (
+          <div className="no-notifications">
+            <p>No recent activity</p>
+          </div>
+        )}
+
+        {visible.map((item) => (
+          <div key={item.id} className={`notification-item ${item.type}`}>
+            <div className="notification-icon">{ICONS[item.type] || ICONS.info}</div>
+            <div className="notification-content">
+              <p className="notification-title">{item.title}</p>
+              <p className="notification-message">{item.message}</p>
+              <span className="notification-time">{timeAgo(item.at)}</span>
+            </div>
+            <button
+              className="notification-close"
+              onClick={() => onDismiss(item.id)}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

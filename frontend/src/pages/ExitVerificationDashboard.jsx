@@ -99,16 +99,13 @@ export default function ExitVerificationDashboard() {
   };
 
   return (
-    <DashboardLayout pageTitle="Exit Verification" pageIcon="🚪">
+    <DashboardLayout pageTitle="Exit Verification">
       <div className="exit-verification-container">
         <div className="verification-content">
           {/* VERIFYING STAGE */}
           {verifyStage === 'verifying' && (
             <div className="verify-stage verifying">
               <div className="verification-animation">
-                <div className="scanner-ring ring1"></div>
-                <div className="scanner-ring ring2"></div>
-                <div className="scanner-ring ring3"></div>
                 <div className="scanner-icon">🚪</div>
               </div>
               <h1>Verifying Exit...</h1>

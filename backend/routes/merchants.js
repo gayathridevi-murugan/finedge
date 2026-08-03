@@ -17,6 +17,10 @@ router.post('/onboard', async (req, res) => {
       bank_name,
       account_number,
       account_holder,
+      corporate_id,
+      address_line1,
+      city,
+      postal_code,
       mode
     } = req.body;
 
@@ -28,64 +32,89 @@ router.post('/onboard', async (req, res) => {
       });
     }
 
+    // Surfboard wants phone numbers split into country code + local number, not a single string.
+    const toPhoneNumber = (raw) => {
+      let digits = (raw || '').replace(/\D/g, '');
+      if (digits.startsWith('46')) digits = digits.slice(2);
+      else if (digits.startsWith('0')) digits = digits.slice(1);
+      return { code: '46', number: digits };
+    };
+
     // Generate unique local merchant_id
     const merchant_id = `MERCHANT_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    let surfboard_merchant_id = null;
-    let surfboard_status = 'NOT_REGISTERED';
-    let merchant_status = 'PENDING';
+    const surfboardOnboardingEnabled = !!(
+      process.env.SURFBOARD_API_KEY && process.env.SURFBOARD_SECRET_KEY && process.env.SURFBOARD_PARTNER_ID
+    );
 
-    // Call Surfboard Merchant Onboarding API if credentials provided
-    if (process.env.SURFBOARD_API_KEY && process.env.SURFBOARD_SECRET_KEY && process.env.SURFBOARD_BASE_URL) {
-      try {
-        console.log('🔄 Calling Surfboard Merchant Onboarding API...');
-
-        const surfboardResponse = await axios.post(
-          `${process.env.SURFBOARD_BASE_URL}/api/v1/merchants/onboard`,
-          {
-            partner_id: process.env.SURFBOARD_PARTNER_ID,
-            business_name,
-            business_type,
-            business_email,
-            owner_name,
-            owner_email,
-            owner_phone,
-            bank_account_last4: account_number ? account_number.slice(-4) : null,
-            pricing_plan: 'standard'
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.SURFBOARD_API_KEY}`,
-              'X-API-Secret': process.env.SURFBOARD_SECRET_KEY,
-              'Content-Type': 'application/json'
-            },
-            timeout: 15000
-          }
-        );
-
-        console.log('✅ Surfboard API Response Status:', surfboardResponse.status);
-        console.log('✅ Surfboard Response:', JSON.stringify(surfboardResponse.data, null, 2));
-
-        if (surfboardResponse.data && surfboardResponse.data.merchant_id) {
-          surfboard_merchant_id = surfboardResponse.data.merchant_id;
-          surfboard_status = surfboardResponse.data.status || 'REGISTERED';
-          merchant_status = 'APPROVED';
-          console.log('✅ Merchant registered with Surfboard:', surfboard_merchant_id);
-        }
-      } catch (error) {
-        console.warn('⚠️ Surfboard API Error:');
-        console.warn('  Status:', error.response?.status);
-        console.warn('  Message:', error.response?.data?.message || error.message);
-        console.warn('  Details:', JSON.stringify(error.response?.data, null, 2));
-
-        // Don't fail - allow merchant to be created locally
-        console.log('ℹ️ Creating merchant locally without Surfboard integration');
-      }
-    } else {
-      console.log('ℹ️ Surfboard credentials not configured, creating merchant locally');
+    if (!surfboardOnboardingEnabled) {
+      return res.status(503).json({
+        success: false,
+        message: 'Surfboard onboarding is not configured (missing SURFBOARD_API_KEY/SURFBOARD_SECRET_KEY/SURFBOARD_PARTNER_ID in backend/.env).'
+      });
     }
 
-    // Create merchant in database with Surfboard info
+    // Real Surfboard Merchant Onboarding API: POST /partners/:partnerId/merchants
+    // Returns a webKybUrl - a Surfboard-hosted KYB (Know Your Business) page the merchant
+    // must be redirected to in order to actually complete onboarding.
+    console.log('🔄 Calling Surfboard Merchant Onboarding API...');
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    const surfboardResponse = await axios.post(
+      `${process.env.SURFBOARD_BASE_URL}/partners/${process.env.SURFBOARD_PARTNER_ID}/merchants`,
+      {
+        country: 'SE',
+        organisation: {
+          legalName: business_name,
+          corporateId: corporate_id
+        },
+        controlFields: {
+          store: {
+            name: business_name,
+            email: business_email,
+            phoneNumber: toPhoneNumber(business_phone),
+            address: {
+              addressLine1: address_line1,
+              city,
+              countryCode: 'SE',
+              postalCode: postal_code
+            }
+          },
+          redirectUrl: `${frontendUrl}/?onboarding_result=submitted&local_merchant_id=${merchant_id}`,
+          generateShortLink: true
+        }
+      },
+      {
+        headers: {
+          'API-KEY': process.env.SURFBOARD_API_KEY,
+          'API-SECRET': process.env.SURFBOARD_SECRET_KEY,
+          'Content-Type': 'application/json'
+        },
+        timeout: 15000
+      }
+    );
+
+    if (surfboardResponse.data?.status === 'ERROR') {
+      return res.status(400).json({
+        success: false,
+        message: surfboardResponse.data.message || 'Surfboard rejected the onboarding request'
+      });
+    }
+
+    const data = surfboardResponse.data?.data || {};
+    const webKybUrl = data.webKybUrl;
+    const applicationId = data.applicationId;
+
+    if (!webKybUrl) {
+      console.error('Unexpected Surfboard onboarding response shape:', JSON.stringify(surfboardResponse.data));
+      return res.status(502).json({
+        success: false,
+        message: 'Surfboard did not return a webKybUrl to redirect the merchant to.'
+      });
+    }
+
+    // Create merchant locally as PENDING - real approval happens on Surfboard's hosted KYB page.
     const merchant = await Merchant.create({
       merchant_id,
       business_name,
@@ -98,24 +127,35 @@ router.post('/onboard', async (req, res) => {
       bank_name,
       account_holder,
       account_number_last4: account_number ? account_number.slice(-4) : null,
-      surfboard_merchant_id,
-      status: merchant_status,
-      surfboard_status
+      status: 'PENDING',
+      surfboard_status: 'REGISTERED',
+      metadata: { applicationId, webKybUrl }
     });
 
     res.json({
       success: true,
-      message: 'Merchant onboarded successfully',
+      message: 'Surfboard onboarding application created - redirect the merchant to complete KYB verification',
       data: {
         id: merchant.id,
         merchant_id: merchant.merchant_id,
         business_name: merchant.business_name,
         status: merchant.status,
         surfboard_status: merchant.surfboard_status,
+        application_id: applicationId,
+        web_kyb_url: webKybUrl,
         timestamp: merchant.created_at
       }
     });
   } catch (error) {
+    if (error.response) {
+      // Real error from Surfboard - surface it as-is rather than hiding it behind a fake success.
+      console.error('Surfboard onboarding API error:', error.response.status, JSON.stringify(error.response.data));
+      return res.status(502).json({
+        success: false,
+        message: 'Surfboard onboarding request failed',
+        error: error.response.data
+      });
+    }
     console.error('Merchant onboarding error:', error.message);
     console.error('Error details:', error.errors || error.sql || error.stack);
     res.status(500).json({

@@ -51,7 +51,7 @@ export default function SmartShopping() {
   };
 
   return (
-    <DashboardLayout pageTitle="Smart Product NFC" pageIcon="📱">
+    <DashboardLayout pageTitle="Smart Product NFC">
       <div className="smart-shopping">
         <div className="shopping-grid">
           {/* LEFT: PRODUCT CARD */}

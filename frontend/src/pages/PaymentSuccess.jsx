@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useCheckoutStore } from '../store/checkoutStore';
+import { verifyPayment as verifyPaymentApi } from '../services/api';
 import DashboardLayout from '../components/DashboardLayout';
 import '../styles/Receipt.css';
 
@@ -13,12 +14,13 @@ export default function PaymentSuccess() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [verified, setVerified] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState(null);
   const [countdown, setCountdown] = useState(5);
   const hasNavigatedRef = useRef(false);
   // Use order ID from store (state-based routing)
   const orderId = storeOrderId;
 
-  // Verify payment on mount (runs only once)
+  // Verify payment with the backend (which re-checks status with Surfboard) on mount (runs only once)
   useEffect(() => {
     let mounted = true;
 
@@ -30,16 +32,22 @@ export default function PaymentSuccess() {
           return;
         }
 
-        // In real scenario: Call backend to verify Surfboard payment
-        // For now: Mark as verified after a brief delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        if (mounted) {
+        const response = await verifyPaymentApi(orderId);
+        const data = response.data.data;
+
+        if (!mounted) return;
+
+        if (data.order_status === 'PAID') {
+          setPaymentDetails(data);
           setVerified(true);
           setLoading(false);
+        } else {
+          // Not actually paid - never show success for a failed/cancelled/pending payment.
+          setCurrentScreen('payment-cancel');
         }
       } catch (err) {
         if (mounted) {
-          setError(err.message || 'Payment verification failed');
+          setError(err.response?.data?.error?.message || err.message || 'Payment verification failed');
           setLoading(false);
         }
       }
@@ -50,7 +58,7 @@ export default function PaymentSuccess() {
     return () => {
       mounted = false;
     };
-  }, [orderId]);
+  }, [orderId, setCurrentScreen]);
 
   // Auto-navigate to dashboard after 5 seconds on success (runs only once)
   useEffect(() => {
@@ -84,7 +92,7 @@ export default function PaymentSuccess() {
 
   if (loading) {
     return (
-      <DashboardLayout pageTitle="Processing Payment" pageIcon="⏳">
+      <DashboardLayout pageTitle="Processing Payment">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">
@@ -100,7 +108,7 @@ export default function PaymentSuccess() {
 
   if (error) {
     return (
-      <DashboardLayout pageTitle="Payment Error" pageIcon="❌">
+      <DashboardLayout pageTitle="Payment Error">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">
@@ -121,13 +129,17 @@ export default function PaymentSuccess() {
 
   if (verified) {
     return (
-      <DashboardLayout pageTitle="Payment Successful" pageIcon="✅">
+      <DashboardLayout pageTitle="Payment Successful">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header success">
               <div className="success-icon">✓</div>
               <h1>Payment Successful!</h1>
-              <p>Order ID: {orderId}</p>
+              <p>Order ID: {paymentDetails?.order?.order_number || orderId}</p>
+              {paymentDetails?.payment?.id && <p>Payment ID: {paymentDetails.payment.id}</p>}
+              {paymentDetails?.order?.total_amount != null && (
+                <p>Amount Paid: ₹{paymentDetails.order.total_amount.toFixed(2)}</p>
+              )}
               <p>Your payment has been processed successfully.</p>
               <button
                 className="action-btn primary"

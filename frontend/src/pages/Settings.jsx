@@ -32,7 +32,7 @@ export default function Settings() {
   };
 
   return (
-    <DashboardLayout pageTitle="Settings" pageIcon="⚙️">
+    <DashboardLayout pageTitle="Settings">
       <div className="settings-page">
         {/* SETTINGS TABS */}
         <div className="settings-tabs">

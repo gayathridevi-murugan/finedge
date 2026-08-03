@@ -38,18 +38,22 @@
   gap: var(--space-1);
 }
 
+/* 15px rather than 14px: large enough to read comfortably at 100% zoom while
+   still fitting the longest label ("Smart NFC Shopping") inside the 240px rail
+   without truncating. */
 .nav-item {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-2);
+  padding: 10px var(--space-3);
   background: none;
   border: none;
   color: var(--color-text-secondary);
-  font-size: var(--text-sm);
+  font-size: 0.9375rem;
+  line-height: 1.35;
   cursor: pointer;
   border-radius: var(--radius-lg);
-  transition: all var(--transition-base);
+  transition: background var(--transition-base), color var(--transition-base);
   border-left: 3px solid transparent;
   white-space: nowrap;
   overflow: hidden;
@@ -69,12 +73,16 @@
   font-weight: var(--weight-semibold);
 }
 
-.nav-icon {
-  font-size: var(--text-lg);
+/* Letter monogram shown only on the collapsed rail, in place of the
+   decorative emoji the nav items used to carry. */
+.nav-initial {
   flex-shrink: 0;
   display: inline-block;
   width: 24px;
   text-align: center;
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0;
 }
 
 .nav-label {

@@ -30,7 +30,7 @@ export default function NFCScans() {
   const totalValue = scans.reduce((sum, scan) => sum + scan.price, 0);
 
   return (
-    <DashboardLayout pageTitle="NFC Scans" pageIcon="📡">
+    <DashboardLayout pageTitle="NFC Scans">
       <div className="nfc-scans-container">
         {/* HEADER */}
         <div className="scans-header">

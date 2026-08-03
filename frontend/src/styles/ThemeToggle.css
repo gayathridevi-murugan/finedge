@@ -2,10 +2,11 @@
   background: none;
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
-  font-size: 1.25rem;
   cursor: pointer;
   padding: var(--space-2);
-  transition: all var(--transition-base);
+  /* Background only - see note in DashboardLayout.css: transitioning a colour
+     that comes from a theme token breaks re-resolution on theme switch. */
+  transition: background var(--transition-base), border-color var(--transition-base);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
@@ -18,17 +19,23 @@
   background: var(--color-bg-hover);
   border-color: var(--color-primary);
   color: var(--color-primary);
-  transform: scale(1.1);
 }
 
-.theme-toggle:active {
-  transform: scale(0.95);
+/* Line icon replacing the sun/moon emoji; inherits currentColor. */
+.theme-toggle-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 @media (max-width: 768px) {
   .theme-toggle {
     width: 36px;
     height: 36px;
-    font-size: 1.125rem;
+  }
+
+  .theme-toggle-icon {
+    width: 16px;
+    height: 16px;
   }
 }
