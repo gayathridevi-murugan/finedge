@@ -324,7 +324,7 @@ export default function GroupShopping() {
   // ============================================
   if (flowStep === 'add-shoppers') {
     return (
-      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+      <DashboardLayout pageTitle="Group Shopping">
         <div className="group-shopping-container">
           <div className="add-shoppers-section">
             <h1 className="section-title">Group Shopping</h1>
@@ -375,7 +375,7 @@ export default function GroupShopping() {
   if (flowStep === 'shopping') {
     const currentShopper = shoppers[currentShopperIndex];
     return (
-      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+      <DashboardLayout pageTitle="Group Shopping">
         <div className="group-shopping-container">
           <div className="group-header">
             <h2>Group Shopping</h2>
@@ -498,7 +498,7 @@ export default function GroupShopping() {
   if (flowStep === 'payment') {
     const currentShopper = shoppers[currentShopperIndex];
     return (
-      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+      <DashboardLayout pageTitle="Group Shopping">
         <div className="group-shopping-container">
           <div className="payment-section">
             <h2>{currentShopper.name} - Payment</h2>
@@ -567,7 +567,7 @@ export default function GroupShopping() {
   if (flowStep === 'complete') {
     const groupTotal = completedShoppers.reduce((sum, s) => sum + s.amount, 0);
     return (
-      <DashboardLayout pageTitle="👥 Group Shopping" pageIcon="">
+      <DashboardLayout pageTitle="Group Shopping">
         <div className="group-shopping-container">
           <div className="complete-section">
             <h1>✓ Group Shopping Complete!</h1>

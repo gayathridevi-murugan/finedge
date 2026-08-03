@@ -122,7 +122,7 @@ export default function MerchantOnboarding() {
   };
 
   return (
-    <DashboardLayout pageTitle="Merchant Onboarding" pageIcon="🏢">
+    <DashboardLayout pageTitle="Merchant Onboarding">
       <div className="merchant-onboarding">
         {/* HEADER WITH STATUS */}
         <div className="onboarding-header">

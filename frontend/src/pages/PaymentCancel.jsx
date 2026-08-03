@@ -21,7 +21,7 @@ export default function PaymentCancel() {
   };
 
   return (
-    <DashboardLayout pageTitle="Payment Cancelled" pageIcon="⚠️">
+    <DashboardLayout pageTitle="Payment Cancelled">
       <div className="payment-container">
         <div className="payment-status-section">
           <div className="status-message failed">

@@ -92,7 +92,7 @@ export default function PaymentSuccess() {
 
   if (loading) {
     return (
-      <DashboardLayout pageTitle="Processing Payment" pageIcon="⏳">
+      <DashboardLayout pageTitle="Processing Payment">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">
@@ -108,7 +108,7 @@ export default function PaymentSuccess() {
 
   if (error) {
     return (
-      <DashboardLayout pageTitle="Payment Error" pageIcon="❌">
+      <DashboardLayout pageTitle="Payment Error">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">
@@ -129,7 +129,7 @@ export default function PaymentSuccess() {
 
   if (verified) {
     return (
-      <DashboardLayout pageTitle="Payment Successful" pageIcon="✅">
+      <DashboardLayout pageTitle="Payment Successful">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header success">

@@ -6,7 +6,7 @@ import NotificationDropdown from './NotificationDropdown';
 import ProfileDropdown from './ProfileDropdown';
 import '../styles/DashboardLayout.css';
 
-export default function DashboardLayout({ children, pageTitle, pageIcon }) {
+export default function DashboardLayout({ children, pageTitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -25,7 +25,6 @@ export default function DashboardLayout({ children, pageTitle, pageIcon }) {
       <aside className={`dashboard-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <div className="sidebar-logo">
-            <span className="logo-icon">🛍️</span>
             <div className="logo-text">
               <h2>SELF CHECKOUT</h2>
               <p>DEMO</p>
@@ -57,10 +56,11 @@ export default function DashboardLayout({ children, pageTitle, pageIcon }) {
               onClick={() => setSidebarOpen(!sidebarOpen)}
               title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
             >
-              ☰
+              <svg className="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <path d="M3 6h18M3 12h18M3 18h18" />
+              </svg>
             </button>
             <div className="header-title">
-              {pageIcon && <span className="page-icon">{pageIcon}</span>}
               <h1>{pageTitle || 'Dashboard'}</h1>
             </div>
           </div>
@@ -82,7 +82,10 @@ export default function DashboardLayout({ children, pageTitle, pageIcon }) {
                   setProfileOpen(false);
                 }}
               >
-                🔔
+                <svg className="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                </svg>
                 <span className="notification-badge">2</span>
               </button>
               <NotificationDropdown
@@ -100,7 +103,10 @@ export default function DashboardLayout({ children, pageTitle, pageIcon }) {
                   setNotificationOpen(false);
                 }}
               >
-                👤
+                <svg className="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
               </button>
               <ProfileDropdown
                 isOpen={profileOpen}

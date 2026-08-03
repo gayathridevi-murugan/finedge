@@ -99,7 +99,7 @@ export default function ExitVerificationDashboard() {
   };
 
   return (
-    <DashboardLayout pageTitle="Exit Verification" pageIcon="🚪">
+    <DashboardLayout pageTitle="Exit Verification">
       <div className="exit-verification-container">
         <div className="verification-content">
           {/* VERIFYING STAGE */}

@@ -168,7 +168,7 @@ export default function NFCSelfCheckout() {
   const total = subtotal + tax;
 
   return (
-    <DashboardLayout pageTitle="NFC Self Checkout" pageIcon="🏪">
+    <DashboardLayout pageTitle="NFC Self Checkout">
       <div className="nfc-self-checkout">
         {/* JOURNEY STEPS */}
         <div className="journey-indicator">

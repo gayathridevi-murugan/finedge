@@ -57,11 +57,6 @@
   transition: all var(--transition-base);
 }
 
-.logo-icon {
-  font-size: 2rem;
-  display: inline-block;
-}
-
 .logo-text {
   min-width: 0;
 }
@@ -89,11 +84,11 @@
   background: none;
   border: none;
   color: var(--color-text-secondary);
-  font-size: var(--text-xl);
   cursor: pointer;
   padding: 0;
-  transition: color var(--transition-base);
   display: none;
+  align-items: center;
+  justify-content: center;
 }
 
 .sidebar-toggle:hover {
@@ -138,11 +133,6 @@
   color: var(--color-primary);
   border-left-color: var(--color-primary);
   font-weight: var(--weight-semibold);
-}
-
-.nav-icon {
-  font-size: var(--text-lg);
-  flex-shrink: 0;
 }
 
 .nav-label {
@@ -238,11 +228,6 @@
   min-width: 0;
 }
 
-.page-icon {
-  font-size: var(--text-3xl);
-  flex-shrink: 0;
-}
-
 .header-title h1 {
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
@@ -315,17 +300,30 @@
   background: none;
   border: none;
   color: var(--color-text-primary);
-  font-size: var(--text-xl);
   cursor: pointer;
   padding: var(--space-2);
-  transition: all var(--transition-base);
+  /* Only background transitions. `all` included colour, and transitioning a
+     value that comes from a theme custom property stops Chrome re-resolving
+     it on a theme switch - the icons stayed dark on the dark header. */
+  transition: background var(--transition-base);
   position: relative;
   border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notification-btn:hover,
 .profile-btn:hover {
   background: var(--color-primary-bg);
+}
+
+/* Line icons replacing the emoji these buttons used to render. They inherit
+   currentColor so they track the theme automatically. */
+.header-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .notification-badge {
@@ -405,7 +403,7 @@
   }
 
   .sidebar-toggle {
-    display: block;
+    display: flex;
   }
 
   .mobile-menu-btn {
@@ -460,17 +458,13 @@
     gap: var(--space-2);
   }
 
-  .page-icon {
-    font-size: var(--text-2xl);
-  }
-
   .header-title h1 {
     font-size: var(--text-base);
   }
 
-  .notification-btn,
-  .profile-btn {
-    font-size: var(--text-lg);
+  .header-icon {
+    width: 18px;
+    height: 18px;
   }
 }
 

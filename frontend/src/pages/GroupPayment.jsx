@@ -64,7 +64,7 @@ export default function GroupPayment() {
 
   if (loading) {
     return (
-      <DashboardLayout pageTitle="Payment" pageIcon="💳">
+      <DashboardLayout pageTitle="Payment">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header">
@@ -86,7 +86,7 @@ export default function GroupPayment() {
 
   if (orderId && paymentId) {
     return (
-      <DashboardLayout pageTitle="Payment Successful" pageIcon="✅">
+      <DashboardLayout pageTitle="Payment Successful">
         <div className="receipt-container">
           <div className="receipt-content">
             <div className="receipt-header success">
@@ -106,7 +106,7 @@ export default function GroupPayment() {
   }
 
   return (
-    <DashboardLayout pageTitle="Group Payment" pageIcon="💳">
+    <DashboardLayout pageTitle="Group Payment">
       <div className="receipt-container">
         <div className="receipt-content">
           <div className="receipt-header">

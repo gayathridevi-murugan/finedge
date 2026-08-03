@@ -115,7 +115,7 @@ export default function CartPage() {
   };
 
   return (
-    <DashboardLayout pageTitle="Shopping Cart" pageIcon="🛒">
+    <DashboardLayout pageTitle="Shopping Cart">
       <div className="cart-page">
         <div className="cart-layout">
           {/* CART ITEMS */}

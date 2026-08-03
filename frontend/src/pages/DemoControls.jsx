@@ -82,7 +82,7 @@ export default function DemoControls() {
   };
 
   return (
-    <DashboardLayout pageTitle="Demo Controls" pageIcon="⚙️">
+    <DashboardLayout pageTitle="Demo Controls">
       <div className="demo-controls">
         {/* NOTIFICATION AREA */}
         <div className="notification-area">

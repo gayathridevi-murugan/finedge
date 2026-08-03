@@ -46,7 +46,7 @@ export default function OverviewDashboard() {
 
   if (loading) {
     return (
-      <DashboardLayout pageTitle="Overview Dashboard" pageIcon="📊">
+      <DashboardLayout pageTitle="Overview Dashboard">
         <div style={{ padding: '2rem', textAlign: 'center' }}>
           <p>Loading dashboard data...</p>
         </div>
@@ -56,7 +56,7 @@ export default function OverviewDashboard() {
 
   if (error) {
     return (
-      <DashboardLayout pageTitle="Overview Dashboard" pageIcon="📊">
+      <DashboardLayout pageTitle="Overview Dashboard">
         <div style={{ padding: '2rem', color: 'var(--color-error)' }}>
           <p>Error loading dashboard: {error}</p>
         </div>
@@ -65,7 +65,7 @@ export default function OverviewDashboard() {
   }
 
   return (
-    <DashboardLayout pageTitle="Overview Dashboard" pageIcon="📊">
+    <DashboardLayout pageTitle="Overview Dashboard">
       <div className="overview-dashboard">
         {/* TOP METRIC CARDS */}
         <div className="metrics-grid">
