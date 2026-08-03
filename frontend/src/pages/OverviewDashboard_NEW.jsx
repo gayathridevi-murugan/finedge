@@ -91,6 +91,7 @@ export default function OverviewDashboard() {
         {/* TOP METRIC CARDS */}
         <div className="metrics-grid">
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">🛒</div>
             <div className="metric-content">
               <p className="metric-label">Active Sessions</p>
               <h3 className="metric-value">{fmt(metrics?.activeSessions)}</h3>
@@ -101,6 +102,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">🛍️</div>
             <div className="metric-content">
               <p className="metric-label">Carts Opened Today</p>
               <h3 className="metric-value">{fmt(metrics?.cartsCreatedToday)}</h3>
@@ -109,6 +111,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">📦</div>
             <div className="metric-content">
               <p className="metric-label">Today's Orders</p>
               <h3 className="metric-value">{fmt(metrics?.todaysOrders)}</h3>
@@ -119,6 +122,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">💰</div>
             <div className="metric-content">
               <p className="metric-label">Today's Revenue</p>
               <h3 className="metric-value">₹{money(metrics?.todaysRevenue)}</h3>
@@ -127,6 +131,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">📱</div>
             <div className="metric-content">
               <p className="metric-label">NFC Scans</p>
               <h3 className="metric-value">{fmt(metrics?.productsScanned)}</h3>
@@ -137,6 +142,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">⏱️</div>
             <div className="metric-content">
               <p className="metric-label">Avg Checkout Time</p>
               <h3 className="metric-value">
@@ -147,6 +153,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card alert">
+            <div className="metric-icon" aria-hidden="true">⏳</div>
             <div className="metric-content">
               <p className="metric-label">Pending Payments</p>
               <h3 className="metric-value">{fmt(metrics?.pendingPayments)}</h3>
@@ -155,6 +162,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">🚪</div>
             <div className="metric-content">
               <p className="metric-label">Exit Events</p>
               <h3 className="metric-value">{fmt(metrics?.exitEvents)}</h3>
@@ -163,6 +171,7 @@ export default function OverviewDashboard() {
           </div>
 
           <div className="metric-card">
+            <div className="metric-icon" aria-hidden="true">🏪</div>
             <div className="metric-content">
               <p className="metric-label">Merchant</p>
               <h3 className="metric-value" style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>
