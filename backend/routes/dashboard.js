@@ -207,6 +207,87 @@ router.get('/metrics', async (req, res) => {
   }
 });
 
+// Unified recent-activity feed for the header notification list. Merges real
+// order, scan and gate events so the dropdown reflects what actually happened
+// instead of a hardcoded sample list.
+router.get('/activity', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 12, 50);
+
+    const rows = await sequelize.query(`
+      (
+        SELECT
+          'order-' || o."id"                       AS id,
+          CASE o."payment_status"
+            WHEN 'PAID'   THEN 'success'
+            WHEN 'FAILED' THEN 'error'
+            ELSE 'warning'
+          END                                       AS type,
+          CASE o."payment_status"
+            WHEN 'PAID'   THEN 'Payment received'
+            WHEN 'FAILED' THEN 'Payment failed'
+            ELSE 'Payment pending'
+          END                                       AS title,
+          'Order ' || COALESCE(o."order_number", LEFT(o."id"::text, 8)) ||
+            ' · Rs ' || TO_CHAR(COALESCE(o."total_amount", 0), 'FM999999990.00') AS message,
+          o."createdAt"                             AS at
+        FROM "orders" o
+        ORDER BY o."createdAt" DESC
+        LIMIT :limit
+      )
+      UNION ALL
+      (
+        SELECT
+          -- Keyed on the scan time, not just the tag. nfc_tags only keeps the
+          -- most recent scan per row, so a tag-only id would repeat every time
+          -- the same tag is tapped and a dismissed entry could never come back.
+          'scan-' || t."id" || '-' ||
+            FLOOR(EXTRACT(EPOCH FROM t."last_scanned_at"))::bigint                AS id,
+          'info'                                    AS type,
+          'Product scanned'                         AS title,
+          COALESCE(p."name", 'Unknown product') ||
+            ' · Rs ' || TO_CHAR(COALESCE(p."price", 0), 'FM999999990.00')        AS message,
+          t."last_scanned_at"                       AS at
+        FROM "nfc_tags" t
+        LEFT JOIN "products" p ON p."id" = t."product_id"
+        WHERE t."last_scanned_at" IS NOT NULL
+        ORDER BY t."last_scanned_at" DESC
+        LIMIT :limit
+      )
+      UNION ALL
+      (
+        SELECT
+          'exit-' || e."id"                         AS id,
+          CASE WHEN e."exit_status"::text = 'APPROVED' THEN 'success' ELSE 'warning' END AS type,
+          'Exit ' || LOWER(e."exit_status"::text)   AS title,
+          'Gate ' || LOWER(COALESCE(e."gate_status"::text, 'unknown'))             AS message,
+          e."createdAt"                             AS at
+        FROM "exit_verifications" e
+        ORDER BY e."createdAt" DESC
+        LIMIT :limit
+      )
+      ORDER BY at DESC
+      LIMIT :limit
+    `, { replacements: { limit }, type: sequelize.QueryTypes.SELECT });
+
+    res.json({
+      success: true,
+      data: {
+        activity: rows.map(r => ({
+          id: r.id,
+          type: r.type,
+          title: r.title,
+          message: r.message,
+          at: r.at
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Activity feed error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get recent NFC scans
 router.get('/recent-scans', async (req, res) => {
   try {
