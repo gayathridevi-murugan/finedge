@@ -3,19 +3,34 @@ import DashboardLayout from '../components/DashboardLayout';
 import apiClient from '../services/api';
 import '../styles/OverviewDashboard_NEW.css';
 
+const REFRESH_SECONDS = 10;
+
+// Render 0 as "0" rather than falling through to a default, so a genuine zero
+// is distinguishable from missing data.
+const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('en-IN') : '—');
+
+const money = (n) =>
+  typeof n === 'number'
+    ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '—';
+
 export default function OverviewDashboard() {
   const [metrics, setMetrics] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [topProducts, setTopProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [error, setError] = useState(null);
 
-  // Function to fetch dashboard data
-  const fetchDashboardData = async () => {
+  // isInitial keeps the full-page loading state for the first fetch only. Every
+  // poll used to set loading=true, which swapped the whole dashboard out for
+  // "Loading dashboard data..." on a 10 second cycle.
+  const fetchDashboardData = async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
+      else setRefreshing(true);
 
-      // Fetch all dashboard data in parallel with cache busting
       const timestamp = new Date().getTime();
       const [metricsRes, ordersRes, productsRes] = await Promise.all([
         apiClient.get(`/dashboard/metrics?t=${timestamp}`),
@@ -27,20 +42,20 @@ export default function OverviewDashboard() {
       if (ordersRes.data.success) setRecentOrders(ordersRes.data.data.orders || []);
       if (productsRes.data.success) setTopProducts(productsRes.data.data.topProducts || []);
 
+      setLastUpdated(new Date());
       setError(null);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // Initial load and auto-refresh
   useEffect(() => {
-    fetchDashboardData();
-    // Refresh every 10 seconds for real-time updates
-    const interval = setInterval(fetchDashboardData, 10000);
+    fetchDashboardData(true);
+    const interval = setInterval(() => fetchDashboardData(false), REFRESH_SECONDS * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -54,11 +69,17 @@ export default function OverviewDashboard() {
     );
   }
 
-  if (error) {
+  // Only block the page when there is nothing to show. A failed poll used to
+  // replace the whole dashboard with an error, discarding data we already had;
+  // now the last known figures stay up and the footer reports the problem.
+  if (error && !metrics) {
     return (
       <DashboardLayout pageTitle="Overview Dashboard">
         <div style={{ padding: '2rem', color: 'var(--color-error)' }}>
-          <p>Error loading dashboard: {error}</p>
+          <p>Could not reach the API: {error}</p>
+          <p style={{ color: 'var(--color-text-secondary)' }}>
+            Check that the backend is running on port 5000.
+          </p>
         </div>
       </DashboardLayout>
     );
@@ -70,75 +91,86 @@ export default function OverviewDashboard() {
         {/* TOP METRIC CARDS */}
         <div className="metrics-grid">
           <div className="metric-card">
-            <div className="metric-icon">📊</div>
             <div className="metric-content">
               <p className="metric-label">Active Sessions</p>
-              <h3 className="metric-value">{metrics?.activeSessions || 0}</h3>
-              <p className="metric-detail">Currently shopping</p>
+              <h3 className="metric-value">{fmt(metrics?.activeSessions)}</h3>
+              <p className="metric-detail">
+                Carts active in last {metrics?.activeSessionWindowMinutes ?? 15} min
+              </p>
             </div>
           </div>
 
           <div className="metric-card">
-            <div className="metric-icon">📦</div>
+            <div className="metric-content">
+              <p className="metric-label">Carts Opened Today</p>
+              <h3 className="metric-value">{fmt(metrics?.cartsCreatedToday)}</h3>
+              <p className="metric-detail">Since midnight</p>
+            </div>
+          </div>
+
+          <div className="metric-card">
             <div className="metric-content">
               <p className="metric-label">Today's Orders</p>
-              <h3 className="metric-value">{metrics?.todaysOrders || 0}</h3>
-              <p className="metric-detail">{metrics?.completedOrders || 0} completed</p>
+              <h3 className="metric-value">{fmt(metrics?.todaysOrders)}</h3>
+              <p className="metric-detail">
+                {fmt(metrics?.completedOrders)} paid · {fmt(metrics?.pendingOrders)} pending · {fmt(metrics?.failedOrders)} failed
+              </p>
             </div>
           </div>
 
           <div className="metric-card">
-            <div className="metric-icon">💰</div>
             <div className="metric-content">
               <p className="metric-label">Today's Revenue</p>
-              <h3 className="metric-value">₹{metrics?.todaysRevenue?.toLocaleString() || 0}</h3>
-              <p className="metric-detail">From completed orders</p>
+              <h3 className="metric-value">₹{money(metrics?.todaysRevenue)}</h3>
+              <p className="metric-detail">From {fmt(metrics?.completedOrders)} paid orders</p>
             </div>
           </div>
 
           <div className="metric-card">
-            <div className="metric-icon">📱</div>
             <div className="metric-content">
-              <p className="metric-label">Products Scanned</p>
-              <h3 className="metric-value">{metrics?.productsScanned || 0}</h3>
-              <p className="metric-detail">Today</p>
+              <p className="metric-label">NFC Scans</p>
+              <h3 className="metric-value">{fmt(metrics?.productsScanned)}</h3>
+              <p className="metric-detail">
+                Across {fmt(metrics?.uniqueProductsScanned)} distinct products
+              </p>
             </div>
           </div>
 
           <div className="metric-card">
-            <div className="metric-icon">✓</div>
             <div className="metric-content">
-              <p className="metric-label">Completed Checkouts</p>
-              <h3 className="metric-value">{metrics?.completedOrders || 0}</h3>
-              <p className="metric-detail">Today</p>
+              <p className="metric-label">Avg Checkout Time</p>
+              <h3 className="metric-value">
+                {metrics?.avgCheckoutMinutes != null ? `${metrics.avgCheckoutMinutes} min` : '—'}
+              </h3>
+              <p className="metric-detail">Order created to payment captured</p>
             </div>
           </div>
 
           <div className="metric-card alert">
-            <div className="metric-icon">⏳</div>
             <div className="metric-content">
               <p className="metric-label">Pending Payments</p>
-              <h3 className="metric-value">{metrics?.pendingPayments || 0}</h3>
-              <p className="metric-detail">Awaiting verification</p>
+              <h3 className="metric-value">{fmt(metrics?.pendingPayments)}</h3>
+              <p className="metric-detail">Awaiting verification today</p>
             </div>
           </div>
 
           <div className="metric-card">
-            <div className="metric-icon">🚪</div>
             <div className="metric-content">
               <p className="metric-label">Exit Events</p>
-              <h3 className="metric-value">{metrics?.exitEvents || 0}</h3>
-              <p className="metric-detail">Today</p>
+              <h3 className="metric-value">{fmt(metrics?.exitEvents)}</h3>
+              <p className="metric-detail">Verified at the gate today</p>
             </div>
           </div>
 
           <div className="metric-card">
-            <div className="metric-icon">🛍️</div>
             <div className="metric-content">
-              <p className="metric-label">Merchant ID</p>
+              <p className="metric-label">Merchant</p>
               <h3 className="metric-value" style={{ fontSize: '0.9rem', wordBreak: 'break-all' }}>
-                {metrics?.merchantId || 'N/A'}
+                {metrics?.merchantId || 'Not configured'}
               </h3>
+              <p className="metric-detail">
+                {metrics?.merchantStatus || 'UNKNOWN'} · DB {metrics?.databaseStatus || 'UNKNOWN'}
+              </p>
             </div>
           </div>
         </div>
@@ -192,9 +224,13 @@ export default function OverviewDashboard() {
           </div>
         </div>
 
-        {/* REFRESH INDICATOR */}
-        <div style={{ padding: '1rem', fontSize: '0.85rem', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-          📡 Data refreshes automatically every 30 seconds
+        {/* REFRESH INDICATOR - interval is REFRESH_SECONDS, so the copy can't drift */}
+        <div className="dashboard-refresh-note">
+          {error
+            ? `Live data unavailable: ${error}`
+            : `Live from the database · refreshes every ${REFRESH_SECONDS}s${
+                lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ''
+              }${refreshing ? ' · updating…' : ''}`}
         </div>
       </div>
     </DashboardLayout>

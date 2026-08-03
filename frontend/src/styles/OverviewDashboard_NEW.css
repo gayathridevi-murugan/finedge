@@ -58,13 +58,9 @@
   background: linear-gradient(90deg, var(--color-warning), var(--color-error));
 }
 
-.metric-icon {
-  font-size: 2.5rem;
-  flex-shrink: 0;
-}
-
 .metric-content {
   flex: 1;
+  min-width: 0;
 }
 
 .metric-label {
@@ -749,10 +745,6 @@
     gap: var(--space-3);
   }
 
-  .metric-icon {
-    font-size: 2rem;
-  }
-
   .metric-value {
     font-size: var(--text-2xl);
   }
@@ -791,3 +783,12 @@
   }
 }
 
+
+/* Live-data footer note. Text is generated from REFRESH_SECONDS so the stated
+   interval cannot drift from the actual poll again. */
+.dashboard-refresh-note {
+  padding: var(--space-4);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}
