@@ -4,6 +4,13 @@ import DashboardLayout from '../components/DashboardLayout';
 import apiClient from '../services/api';
 import '../styles/GroupShopping.css';
 
+// Format a number as Indian-grouped currency with exactly 2 decimals
+const money = (amount) =>
+  (parseFloat(amount) || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
 export default function GroupShopping() {
   const setCurrentScreen = useCheckoutStore((state) => state.setCurrentScreen);
 
@@ -90,6 +97,7 @@ export default function GroupShopping() {
 
     setLoading(true);
 
+    let sessionId = null;
     try {
       const response = await apiClient.post('/group-shopping/create', {
         groupName: `Group-${Date.now()}`,
@@ -98,22 +106,23 @@ export default function GroupShopping() {
       });
 
       if (response.data.success) {
-        setGroupSessionId(response.data.data.groupSessionId);
-        setCurrentShopperIndex(0);
-
-        // Mark first shopper as Shopping
-        const updated = [...shoppers];
-        updated[0].status = 'Shopping';
-        setShoppers(updated);
-
-        setFlowStep('shopping');
+        sessionId = response.data.data.groupSessionId;
+      } else {
+        console.warn('Group session API returned failure:', response.data.error);
       }
     } catch (error) {
-      console.error('Error creating group session:', error);
-      alert('Error creating group session');
-    } finally {
-      setLoading(false);
+      console.warn('Could not create group session on backend:', error);
     }
+
+    // Always advance - fall back to a local session id so the demo never dead-ends
+    setGroupSessionId(sessionId || `LOCAL-${Date.now().toString(36)}`);
+    setCurrentShopperIndex(0);
+
+    const updated = shoppers.map((s, i) => ({ ...s, status: i === 0 ? 'Shopping' : 'Waiting' }));
+    setShoppers(updated);
+
+    setFlowStep('shopping');
+    setLoading(false);
   };
 
   // ============================================
@@ -293,10 +302,12 @@ export default function GroupShopping() {
       setFlowStep('complete');
     } else {
       // Move to next shopper
-      const newShoppers = [...shoppers];
-      newShoppers[currentShopperIndex].status = 'Completed';
-      newShoppers[currentShopperIndex + 1].status = 'Shopping';
-      setShoppers(newShoppers);
+      const nextIndex = currentShopperIndex + 1;
+      setShoppers(shoppers.map((s, i) => {
+        if (i === currentShopperIndex) return { ...s, status: 'Completed' };
+        if (i === nextIndex) return { ...s, status: 'Shopping' };
+        return s;
+      }));
 
       setCurrentShopperIndex(currentShopperIndex + 1);
       setCurrentPersonCart([]);
@@ -422,7 +433,7 @@ export default function GroupShopping() {
                   <div className="product-text">
                     <h4>{selectedProduct.name}</h4>
                     <p className="brand">{selectedProduct.brand}</p>
-                    <p className="price">₹{selectedProduct.price.toLocaleString()}</p>
+                    <p className="price">₹{money(selectedProduct.price)}</p>
                     <p className="specs">{selectedProduct.size} • {selectedProduct.color}</p>
                   </div>
                 </div>
@@ -446,7 +457,7 @@ export default function GroupShopping() {
                       <p className="item-name">{item.name}</p>
                       <p className="item-qty">Qty: {item.quantity}</p>
                     </div>
-                    <span className="item-price">₹{(item.price * item.quantity).toLocaleString()}</span>
+                    <span className="item-price">₹{money(item.price * item.quantity)}</span>
                   </div>
                 ))
               ) : (
@@ -458,15 +469,15 @@ export default function GroupShopping() {
               <div className="cart-totals">
                 <div className="total-row">
                   <span>Subtotal</span>
-                  <span>₹{currentPersonTotal.toLocaleString()}</span>
+                  <span>₹{money(currentPersonTotal)}</span>
                 </div>
                 <div className="total-row">
                   <span>Tax (10%)</span>
-                  <span>₹{(currentPersonTotal * 0.1).toLocaleString()}</span>
+                  <span>₹{money(currentPersonTotal * 0.1)}</span>
                 </div>
                 <div className="total-row final">
                   <span>Total</span>
-                  <span>₹{(currentPersonTotal * 1.1).toLocaleString()}</span>
+                  <span>₹{money(currentPersonTotal * 1.1)}</span>
                 </div>
               </div>
             )}
@@ -500,7 +511,7 @@ export default function GroupShopping() {
               {currentPersonCart.map((item) => (
                 <div key={item.id} className="payment-item">
                   <span>{item.name} × {item.quantity}</span>
-                  <span className="price">₹{(item.price * item.quantity).toLocaleString()}</span>
+                  <span className="price">₹{money(item.price * item.quantity)}</span>
                 </div>
               ))}
             </div>
@@ -508,15 +519,15 @@ export default function GroupShopping() {
             <div className="payment-totals">
               <div className="total-row">
                 <span>Subtotal</span>
-                <span>₹{currentPersonTotal.toLocaleString()}</span>
+                <span>₹{money(currentPersonTotal)}</span>
               </div>
               <div className="total-row">
                 <span>Tax (10%)</span>
-                <span>₹{(currentPersonTotal * 0.1).toLocaleString()}</span>
+                <span>₹{money(currentPersonTotal * 0.1)}</span>
               </div>
               <div className="total-row final">
                 <span>Total</span>
-                <span>₹{(currentPersonTotal * 1.1).toLocaleString()}</span>
+                <span>₹{money(currentPersonTotal * 1.1)}</span>
               </div>
             </div>
 
@@ -530,8 +541,9 @@ export default function GroupShopping() {
               </button>
             )}
 
-            {paymentMessage && (
-              <div className={`payment-message ${paymentSuccess ? 'success' : 'error'}`}>
+            {/* Only shown while pending or on failure - the success block below carries its own heading */}
+            {paymentMessage && !paymentSuccess && (
+              <div className="payment-message error">
                 {paymentMessage}
               </div>
             )}
@@ -539,6 +551,7 @@ export default function GroupShopping() {
             {paymentSuccess && (
               <div className="payment-success">
                 <h3>✓ Payment Successful!</h3>
+                <p>Amount Paid: ₹{money(currentPersonTotal * 1.1)}</p>
                 <p>Order ID: {currentPersonOrderId}</p>
                 <button className="btn-next" onClick={handleNextPerson}>
                   {currentShopperIndex === shoppers.length - 1 ? 'View Summary →' : 'Next Person →'}
@@ -571,7 +584,7 @@ export default function GroupShopping() {
                 <div key={shopper.index} className="person-summary">
                   <span className="person-label">{shopper.name}</span>
                   <span className="person-status">✓ Completed</span>
-                  <span className="person-amount">₹{shopper.amount.toLocaleString()}</span>
+                  <span className="person-amount">₹{money(shopper.amount)}</span>
                 </div>
               ))}
             </div>
@@ -583,11 +596,11 @@ export default function GroupShopping() {
               </div>
               <div className="total-item">
                 <span className="label">Group Total</span>
-                <span className="value">₹{groupTotal.toLocaleString()}</span>
+                <span className="value">₹{money(groupTotal)}</span>
               </div>
               <div className="total-item">
                 <span className="label">Average Per Person</span>
-                <span className="value">₹{(groupTotal / shoppers.length).toLocaleString()}</span>
+                <span className="value">₹{money(groupTotal / shoppers.length)}</span>
               </div>
             </div>
 

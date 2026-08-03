@@ -8,21 +8,27 @@ const router = express.Router();
 // Create a new group shopping session with members
 router.post('/create', async (req, res) => {
   try {
-    const { groupName, memberCount } = req.body;
+    const { groupName, memberCount, members: memberNames } = req.body;
+
+    const total = parseInt(memberCount, 10) || (Array.isArray(memberNames) ? memberNames.length : 0);
+    if (total < 1) {
+      return res.status(400).json({ success: false, error: 'memberCount must be at least 1' });
+    }
 
     const groupSession = await GroupSession.create({
       group_name: groupName || `Group-${Date.now()}`,
-      total_members: memberCount,
+      total_members: total,
       status: 'ACTIVE'
     });
 
-    // Create group members with sequential numbering
+    // Create group members with sequential numbering, honouring any names supplied
     const members = [];
-    for (let i = 1; i <= memberCount; i++) {
+    for (let i = 1; i <= total; i++) {
+      const supplied = Array.isArray(memberNames) ? memberNames[i - 1] : null;
       const member = await GroupMember.create({
         group_session_id: groupSession.id,
         member_number: i,
-        member_name: `Person ${i}`,
+        member_name: (supplied && String(supplied).trim()) || `Person ${i}`,
         status: i === 1 ? 'SHOPPING' : 'WAITING',
         payment_status: 'UNPAID'
       });
