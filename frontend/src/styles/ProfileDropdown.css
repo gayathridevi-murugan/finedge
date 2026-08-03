@@ -142,9 +142,17 @@
 
 /* RESPONSIVE */
 @media (max-width: 480px) {
+  /* Pinned to the viewport, not the button's container - right:-140px used to
+     push most of the panel off the right edge of the screen. */
   .profile-dropdown {
-    width: calc(100vw - 40px);
-    right: -140px;
+    position: fixed;
+    top: 66px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    margin-top: 0;
+    max-height: calc(100vh - 84px);
+    overflow-y: auto;
   }
 }
 
