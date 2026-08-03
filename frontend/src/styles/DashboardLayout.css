@@ -8,8 +8,16 @@
   margin-left: 0;
 }
 
+/* Reserves room for the fixed sidebar. Must be kept in step with the
+   sidebar width at every breakpoint, and dropped to 0 once the sidebar
+   becomes an overlay drawer - see the media queries at the end of this file. */
 .dashboard-layout .dashboard-main {
   margin-left: 240px;
+}
+
+/* Collapsed rail is 80px, so the content must follow it in. */
+.dashboard-layout .dashboard-sidebar.closed + .dashboard-main {
+  margin-left: 80px;
 }
 
 /* SIDEBAR */
@@ -360,6 +368,11 @@
     width: 200px;
   }
 
+  /* Follow the narrower sidebar. */
+  .dashboard-layout .dashboard-main {
+    margin-left: 200px;
+  }
+
   .dashboard-header {
     padding: 0 var(--space-3);
     gap: var(--space-3);
@@ -399,7 +412,13 @@
     display: block;
   }
 
-  .dashboard-main {
+  /* The sidebar is an overlay drawer from here down, so it must stop
+     reserving horizontal space. Without this the content kept a 240px left
+     margin on a 375px screen and had only 135px to lay out in - which is
+     what forced the whole app to be zoomed out to fit. */
+  .dashboard-layout .dashboard-main,
+  .dashboard-layout .dashboard-sidebar.closed + .dashboard-main {
+    margin-left: 0;
     width: 100%;
   }
 
@@ -427,34 +446,18 @@
   }
 }
 
+/* Single 480px block. There were two of these declaring the same properties,
+   so the sidebar width silently resolved to whichever came last. */
 @media (max-width: 480px) {
   .dashboard-sidebar {
-    width: 200px;
+    width: 80%;
+    max-width: 280px;
   }
 
   .dashboard-header {
     height: 60px;
     padding: 0 var(--space-2);
     gap: var(--space-2);
-  }
-
-  .page-icon {
-    font-size: var(--text-2xl);
-  }
-
-  .header-title h1 {
-    font-size: var(--text-base);
-  }
-
-  .notification-btn,
-  .profile-btn {
-    font-size: var(--text-lg);
-  }
-}
-
-@media (max-width: 480px) {
-  .dashboard-sidebar {
-    width: 70%;
   }
 
   .page-icon {

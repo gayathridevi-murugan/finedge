@@ -301,53 +301,19 @@
   padding: var(--space-6);
 }
 
+/* Sized to its content. The looping pulse rings that used to sit here were
+   the same decorative logo repeated on every dashboard; scanning feedback
+   comes from the status text and the button label instead. */
 .nfc-animation {
-  position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 0 auto var(--space-4);
-}
-
-.nfc-scanner-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border: 2px solid var(--color-primary);
-  border-radius: 50%;
-  opacity: 0.3;
-}
-
-.nfc-scanner-ring.ring1 {
-  width: 100px;
-  height: 100px;
-}
-
-.nfc-scanner-ring.ring2 {
-  width: 70px;
-  height: 70px;
-}
-
-.nfc-scanner-ring.ring3 {
-  width: 40px;
-  height: 40px;
-}
-
-.nfc-animation.scanning .nfc-scanner-ring {
-  animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.8; }
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--space-3);
 }
 
 .nfc-icon-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: var(--text-5xl);
+  font-size: 3rem;
+  line-height: 1;
 }
 
 .scanner-title {

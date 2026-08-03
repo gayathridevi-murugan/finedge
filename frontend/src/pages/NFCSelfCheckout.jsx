@@ -187,11 +187,8 @@ export default function NFCSelfCheckout() {
           <div className="nfc-reader-section">
             <h2>NFC READER</h2>
             <div className="nfc-reader-container">
-              {/* NFC ANIMATION */}
+              {/* NFC READER ICON - scanning feedback is the status text/spinner below */}
               <div className={`nfc-animation ${isScanning ? 'scanning' : ''}`}>
-                <div className={`scanner-ring ring1 ${scanAnimation ? 'active' : ''}`}></div>
-                <div className={`scanner-ring ring2 ${scanAnimation ? 'active' : ''}`}></div>
-                <div className={`scanner-ring ring3 ${scanAnimation ? 'active' : ''}`}></div>
                 <div className="nfc-icon">📱</div>
               </div>
 

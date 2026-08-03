@@ -405,9 +405,6 @@ export default function GroupShopping() {
           <div className="nfc-section">
             <div className="nfc-scanner-box">
               <div className={`nfc-animation ${scanning ? 'scanning' : ''}`}>
-                <div className="nfc-scanner-ring ring1"></div>
-                <div className="nfc-scanner-ring ring2"></div>
-                <div className="nfc-scanner-ring ring3"></div>
                 <div className="nfc-icon-center">📱</div>
               </div>
 

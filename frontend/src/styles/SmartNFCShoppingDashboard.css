@@ -29,45 +29,18 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* Sized to its content - was a fixed 160x160 box built around decorative
+   rings that were display:none, leaving a large empty gap above the label. */
 .nfc-animation {
-  position: relative;
-  width: 160px;
-  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.nfc-scanner-ring {
-  position: absolute;
-  border: 2px solid var(--color-info);
-  border-radius: 50%;
-  opacity: 0.3;
-  display: none;
-}
-
-.nfc-scanner-ring.ring1 {
-  width: 80px;
-  height: 80px;
-}
-
-.nfc-scanner-ring.ring2 {
-  width: 120px;
-  height: 120px;
-}
-
-.nfc-scanner-ring.ring3 {
-  width: 160px;
-  height: 160px;
-}
-
-.nfc-animation.scanning .nfc-scanner-ring {
+  padding: var(--space-2) 0;
 }
 
 .nfc-icon-center {
-  font-size: 3.5rem;
-  position: relative;
-  z-index: 2;
+  font-size: 3rem;
+  line-height: 1;
 }
 
 .nfc-instruction {
