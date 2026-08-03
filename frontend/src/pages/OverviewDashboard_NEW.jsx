@@ -15,95 +15,50 @@ const money = (n) =>
     : '—';
 
 // One definition per KPI tile. Keeping them in data rather than nine hand
-// written blocks keeps the markup, the expand behaviour and the ordering in
-// one place.
+// written blocks keeps the markup and the ordering in one place.
 const buildCards = (m) => {
-  const pct = (part, whole) =>
-    typeof part === 'number' && whole ? `${Math.round((part / whole) * 100)}%` : '—';
-
   return [
     {
       key: 'sessions',
       icon: '🛒',
       label: 'Active Sessions',
       value: fmt(m?.activeSessions),
-      detail: `Carts touched in the last ${m?.activeSessionWindowMinutes ?? 15} min`,
-      breakdown: [
-        { k: 'Opened today', v: fmt(m?.cartsCreatedToday) },
-        { k: 'Still active', v: fmt(m?.activeSessions) },
-        { k: 'Conversion to order', v: pct(m?.todaysOrders, m?.cartsCreatedToday) }
-      ]
+      detail: `Carts touched in the last ${m?.activeSessionWindowMinutes ?? 15} min`
     },
     {
       key: 'carts',
       icon: '🛍️',
       label: 'Carts Opened Today',
       value: fmt(m?.cartsCreatedToday),
-      detail: 'Since midnight',
-      breakdown: [
-        { k: 'Became orders', v: fmt(m?.todaysOrders) },
-        { k: 'Abandoned', v: fmt(typeof m?.cartsCreatedToday === 'number' && typeof m?.todaysOrders === 'number' ? m.cartsCreatedToday - m.todaysOrders : undefined) },
-        { k: 'Currently active', v: fmt(m?.activeSessions) }
-      ]
+      detail: 'Since midnight'
     },
     {
       key: 'orders',
       icon: '📦',
       label: "Today's Orders",
       value: fmt(m?.todaysOrders),
-      detail: `${fmt(m?.completedOrders)} paid · ${fmt(m?.pendingOrders)} pending · ${fmt(m?.failedOrders)} failed`,
-      breakdown: [
-        { k: 'Paid', v: `${fmt(m?.completedOrders)} (${pct(m?.completedOrders, m?.todaysOrders)})` },
-        { k: 'Pending', v: `${fmt(m?.pendingOrders)} (${pct(m?.pendingOrders, m?.todaysOrders)})` },
-        { k: 'Failed', v: `${fmt(m?.failedOrders)} (${pct(m?.failedOrders, m?.todaysOrders)})` }
-      ]
+      detail: `${fmt(m?.completedOrders)} paid · ${fmt(m?.pendingOrders)} pending · ${fmt(m?.failedOrders)} failed`
     },
     {
       key: 'revenue',
       icon: '💰',
       label: "Today's Revenue",
       value: `₹${money(m?.todaysRevenue)}`,
-      detail: `From ${fmt(m?.completedOrders)} paid orders`,
-      breakdown: [
-        { k: 'Paid orders', v: fmt(m?.completedOrders) },
-        {
-          k: 'Average order value',
-          v:
-            typeof m?.todaysRevenue === 'number' && m?.completedOrders
-              ? `₹${money(m.todaysRevenue / m.completedOrders)}`
-              : '—'
-        },
-        { k: 'Uncollected orders', v: fmt(typeof m?.pendingOrders === 'number' && typeof m?.failedOrders === 'number' ? m.pendingOrders + m.failedOrders : undefined) }
-      ]
+      detail: `From ${fmt(m?.completedOrders)} paid orders`
     },
     {
       key: 'scans',
       icon: '📱',
       label: 'NFC Scans',
       value: fmt(m?.productsScanned),
-      detail: `Across ${fmt(m?.uniqueProductsScanned)} distinct products`,
-      breakdown: [
-        { k: 'Total scans', v: fmt(m?.productsScanned) },
-        { k: 'Distinct products', v: fmt(m?.uniqueProductsScanned) },
-        {
-          k: 'Scans per product',
-          v:
-            typeof m?.productsScanned === 'number' && m?.uniqueProductsScanned
-              ? (m.productsScanned / m.uniqueProductsScanned).toFixed(1)
-              : '—'
-        }
-      ]
+      detail: `Across ${fmt(m?.uniqueProductsScanned)} distinct products`
     },
     {
       key: 'checkout',
       icon: '⏱️',
       label: 'Avg Checkout Time',
       value: m?.avgCheckoutMinutes != null ? `${m.avgCheckoutMinutes} min` : '—',
-      detail: 'Order created to payment captured',
-      breakdown: [
-        { k: 'Measured over', v: `${fmt(m?.completedOrders)} paid orders` },
-        { k: 'Basis', v: 'Order created → payment captured' }
-      ]
+      detail: 'Order created to payment captured'
     },
     {
       key: 'pending',
@@ -111,23 +66,14 @@ const buildCards = (m) => {
       label: 'Pending Payments',
       value: fmt(m?.pendingPayments),
       detail: 'Awaiting verification today',
-      tone: 'alert',
-      breakdown: [
-        { k: 'Pending orders', v: fmt(m?.pendingOrders) },
-        { k: 'Failed orders', v: fmt(m?.failedOrders) },
-        { k: 'Gateway', v: m?.merchantStatus === 'ACTIVE' ? 'Live' : 'Not fully configured' }
-      ]
+      tone: 'alert'
     },
     {
       key: 'exits',
       icon: '🚪',
       label: 'Exit Events',
       value: fmt(m?.exitEvents),
-      detail: 'Verified at the gate today',
-      breakdown: [
-        { k: 'Verified today', v: fmt(m?.exitEvents) },
-        { k: 'Paid orders today', v: fmt(m?.completedOrders) }
-      ]
+      detail: 'Verified at the gate today'
     },
     {
       key: 'merchant',
@@ -135,12 +81,7 @@ const buildCards = (m) => {
       label: 'Merchant',
       value: m?.merchantId || 'Not configured',
       small: true,
-      detail: `${m?.merchantStatus || 'UNKNOWN'} · DB ${m?.databaseStatus || 'UNKNOWN'}`,
-      breakdown: [
-        { k: 'Status', v: m?.merchantStatus || 'UNKNOWN' },
-        { k: 'Database', v: m?.databaseStatus || 'UNKNOWN' },
-        { k: 'Terminals', v: fmt(m?.terminals) }
-      ]
+      detail: `${m?.merchantStatus || 'UNKNOWN'} · DB ${m?.databaseStatus || 'UNKNOWN'}`
     }
   ];
 };
@@ -152,7 +93,6 @@ export default function OverviewDashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [expanded, setExpanded] = useState(null);
   const [error, setError] = useState(null);
 
   // isInitial keeps the full-page loading state for the first fetch only. Every
@@ -224,43 +164,14 @@ export default function OverviewDashboard() {
       <div className="overview-dashboard">
         {/* TOP METRIC CARDS */}
         <div className="metrics-grid">
-          {cards.map((c) => {
-            const open = expanded === c.key;
-            return (
-              <button
-                key={c.key}
-                type="button"
-                className={`metric-card${c.tone ? ' ' + c.tone : ''}${open ? ' is-open' : ''}`}
-                onClick={() => setExpanded(open ? null : c.key)}
-                aria-expanded={open}
-              >
-                <span className="metric-head">
-                  <span className="metric-icon" aria-hidden="true">{c.icon}</span>
-                  <span className="metric-label">{c.label}</span>
-                  <span className={`metric-chevron${open ? ' is-open' : ''}`} aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                         strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  </span>
-                </span>
-
-                <span className={`metric-value${c.small ? ' is-small' : ''}`}>{c.value}</span>
-                <span className="metric-detail">{c.detail}</span>
-
-                {open && (
-                  <span className="metric-breakdown">
-                    {c.breakdown.map((row) => (
-                      <span className="metric-breakdown-row" key={row.k}>
-                        <span className="bd-key">{row.k}</span>
-                        <span className="bd-val">{row.v}</span>
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          {cards.map((c) => (
+            <div key={c.key} className={`metric-card${c.tone ? ' ' + c.tone : ''}`}>
+              <div className="metric-icon" aria-hidden="true">{c.icon}</div>
+              <p className="metric-label">{c.label}</p>
+              <p className={`metric-value${c.small ? ' is-small' : ''}`}>{c.value}</p>
+              <p className="metric-detail">{c.detail}</p>
+            </div>
+          ))}
         </div>
 
         {/* TOP SELLING PRODUCTS */}
