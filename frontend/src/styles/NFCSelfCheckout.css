@@ -125,11 +125,16 @@
 }
 
 /* NFC ANIMATION */
+/* The grid stretches this card to match the taller cart column, so the reader
+   needs to centre itself in whatever height it is given. Without
+   justify-content it defaulted to flex-start and the icon, status text and
+   button sat at the top with all the empty space below them. */
 .nfc-reader-container {
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
+  justify-content: center;
   flex: 1;
 }
 
