@@ -8,6 +8,7 @@ const OrderItem = require('./OrderItem');
 const Payment = require('./Payment');
 const Receipt = require('./Receipt');
 const NFCTag = require('./NFCTag');
+const NFCScanEvent = require('./NFCScanEvent');
 const SecurityTag = require('./SecurityTag');
 const Loyalty = require('./Loyalty');
 const ExitVerification = require('./ExitVerification');
@@ -81,6 +82,7 @@ module.exports = {
   Payment,
   Receipt,
   NFCTag,
+  NFCScanEvent,
   SecurityTag,
   Loyalty,
   ExitVerification,

@@ -1,4 +1,4 @@
-const { Product, NFCTag, SecurityTag } = require('../models');
+const { Product, NFCTag, SecurityTag, NFCScanEvent } = require('../models');
 
 class NFCService {
   async scanNFCTag(tagId) {
@@ -8,9 +8,23 @@ class NFCService {
       throw new Error(`NFC tag not found: ${tagId}. Please ensure the product is registered in the system.`);
     }
 
+    const scannedAt = new Date();
     nfcTag.scan_count = (nfcTag.scan_count || 0) + 1;
-    nfcTag.last_scanned_at = new Date();
+    nfcTag.last_scanned_at = scannedAt;
     await nfcTag.save();
+
+    // One row per tap so per-period scan counts are exact. Logging must never
+    // be able to fail a scan, hence the swallow.
+    try {
+      await NFCScanEvent.create({
+        nfc_tag_id: nfcTag.id,
+        product_id: nfcTag.product_id,
+        tag_code: nfcTag.tag_id,
+        scanned_at: scannedAt
+      });
+    } catch (e) {
+      console.warn('Could not record NFC scan event:', e.message);
+    }
 
     const product = await Product.findByPk(nfcTag.product_id);
     if (!product) {

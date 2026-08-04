@@ -90,16 +90,16 @@ router.get('/metrics', async (req, res) => {
       todaysRevenue = parseFloat(revenueResult[0]?.total_revenue || 0);
     } catch (e) { console.warn('Revenue calculation failed:', e.message); }
 
-    // Scan volume, not distinct products. The previous COUNT(DISTINCT product_id)
-    // could never exceed the size of the catalogue, so with 6 products this metric
-    // sat on 6 permanently no matter how many scans happened.
+    // Counted from the per-tap event log. nfc_tags only holds a lifetime
+    // scan_count and the latest last_scanned_at, so summing it reported a tag's
+    // whole history the moment it was tapped once today - one scan today on a
+    // tag tapped 18 times in total showed as 18.
     try {
       const scannedResult = await sequelize.query(`
-        SELECT COALESCE(SUM("scan_count"), 0)::int      AS scans,
-               COUNT(DISTINCT "product_id")::int        AS unique_products
-          FROM "nfc_tags"
-         WHERE "last_scanned_at" IS NOT NULL
-           AND "last_scanned_at" >= :today
+        SELECT COUNT(*)::int                      AS scans,
+               COUNT(DISTINCT "product_id")::int  AS unique_products
+          FROM "nfc_scan_events"
+         WHERE "scanned_at" >= :today
       `, {
         replacements: { today },
         type: sequelize.QueryTypes.SELECT
@@ -238,20 +238,17 @@ router.get('/activity', async (req, res) => {
       UNION ALL
       (
         SELECT
-          -- Keyed on the scan time, not just the tag. nfc_tags only keeps the
-          -- most recent scan per row, so a tag-only id would repeat every time
-          -- the same tag is tapped and a dismissed entry could never come back.
-          'scan-' || t."id" || '-' ||
-            FLOOR(EXTRACT(EPOCH FROM t."last_scanned_at"))::bigint                AS id,
+          -- From the per-tap log, so every scan is its own entry rather than
+          -- one row per tag that changes timestamp.
+          'scan-' || e."id"                         AS id,
           'info'                                    AS type,
           'Product scanned'                         AS title,
           COALESCE(p."name", 'Unknown product') ||
             ' · Rs ' || TO_CHAR(COALESCE(p."price", 0), 'FM999999990.00')        AS message,
-          t."last_scanned_at"                       AS at
-        FROM "nfc_tags" t
-        LEFT JOIN "products" p ON p."id" = t."product_id"
-        WHERE t."last_scanned_at" IS NOT NULL
-        ORDER BY t."last_scanned_at" DESC
+          e."scanned_at"                            AS at
+        FROM "nfc_scan_events" e
+        LEFT JOIN "products" p ON p."id" = e."product_id"
+        ORDER BY e."scanned_at" DESC
         LIMIT :limit
       )
       UNION ALL
