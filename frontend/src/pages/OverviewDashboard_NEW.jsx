@@ -14,17 +14,10 @@ const money = (n) =>
     ? n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '—';
 
-// One definition per KPI tile. Keeping them in data rather than nine hand
-// written blocks keeps the markup and the ordering in one place.
+// One definition per KPI tile. Keeping them in data rather than hand written
+// blocks keeps the markup and the ordering in one place.
 const buildCards = (m) => {
   return [
-    {
-      key: 'sessions',
-      icon: '🛒',
-      label: 'Active Sessions',
-      value: fmt(m?.activeSessions),
-      detail: `Carts touched in the last ${m?.activeSessionWindowMinutes ?? 15} min`
-    },
     {
       key: 'carts',
       icon: '🛍️',
