@@ -285,6 +285,66 @@ router.get('/activity', async (req, res) => {
   }
 });
 
+// Real scan history for the NFC Scans page, from the per-tap event log, with
+// aggregates computed over the same rows so the stat cards always agree with
+// the list below them.
+router.get('/scan-history', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+
+    const scans = await sequelize.query(`
+      SELECT e."id",
+             e."tag_code",
+             e."scanned_at",
+             COALESCE(p."name", 'Unknown product')  AS product,
+             COALESCE(p."price", 0)::float          AS price,
+             COALESCE(p."category", 'General')      AS category,
+             COALESCE(p."subcategory", '')          AS subcategory
+        FROM "nfc_scan_events" e
+        LEFT JOIN "products" p ON p."id" = e."product_id"
+       ORDER BY e."scanned_at" DESC
+       LIMIT :limit
+    `, { replacements: { limit }, type: sequelize.QueryTypes.SELECT });
+
+    const totals = await sequelize.query(`
+      SELECT COUNT(*)::int                                        AS total_scans,
+             COUNT(*) FILTER (WHERE e."scanned_at" >= CURRENT_DATE)::int AS scans_today,
+             COUNT(DISTINCT e."product_id")::int                  AS unique_products,
+             COALESCE(SUM(COALESCE(p."price", 0)), 0)::float      AS total_value
+        FROM "nfc_scan_events" e
+        LEFT JOIN "products" p ON p."id" = e."product_id"
+    `, { type: sequelize.QueryTypes.SELECT });
+
+    const t = totals[0] || {};
+    const totalScans = parseInt(t.total_scans || 0);
+
+    res.json({
+      success: true,
+      data: {
+        scans: scans.map(s => ({
+          id: s.id,
+          product: s.product,
+          price: s.price,
+          category: s.category,
+          subcategory: s.subcategory,
+          tagCode: s.tag_code,
+          scannedAt: s.scanned_at
+        })),
+        stats: {
+          totalScans,
+          scansToday: parseInt(t.scans_today || 0),
+          uniqueProducts: parseInt(t.unique_products || 0),
+          totalValue: parseFloat(t.total_value || 0),
+          averagePrice: totalScans ? parseFloat(t.total_value || 0) / totalScans : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Scan history error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get recent NFC scans
 router.get('/recent-scans', async (req, res) => {
   try {

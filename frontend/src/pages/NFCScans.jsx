@@ -1,66 +1,152 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
+import apiClient from '../services/api';
 import '../styles/NFCScans.css';
 
-export default function NFCScans() {
-  const [scans, setScans] = useState([
-    { id: 1, product: 'Premium Cotton T-Shirt', price: 999, time: '14:32:15', emoji: '👕', status: 'success' },
-    { id: 2, product: 'Casual Printed T-Shirt', price: 1299, time: '14:31:42', emoji: '👕', status: 'success' },
-    { id: 3, product: 'Classic Blue Denim Jeans', price: 2499, time: '14:31:08', emoji: '👖', status: 'success' },
-    { id: 4, product: 'Slim Fit Black Jeans', price: 2299, time: '14:30:35', emoji: '👖', status: 'success' },
-    { id: 5, product: 'White Running Sneakers', price: 3999, time: '14:29:52', emoji: '👟', status: 'success' },
-    { id: 6, product: 'Casual Black Slip-Ons', price: 2799, time: '14:29:10', emoji: '👞', status: 'success' },
-    { id: 7, product: 'Premium Hoodie Jacket', price: 1999, time: '14:28:33', emoji: '🧥', status: 'success' },
-    { id: 8, product: 'Sports Hoodie', price: 1799, time: '14:27:58', emoji: '🧥', status: 'success' },
-    { id: 9, product: 'Cotton Baseball Cap', price: 699, time: '14:27:15', emoji: '🧢', status: 'success' },
-    { id: 10, product: 'Leather Crossbody Bag', price: 4299, time: '14:26:42', emoji: '👜', status: 'success' },
-  ]);
+const REFRESH_SECONDS = 10;
 
-  const [filter, setFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+// Stand-in for product photography. Keyed on the values the catalogue actually
+// uses - subcategory first, then category - so nothing silently falls through.
+const SUBCATEGORY_ICONS = {
+  'T-Shirts': '👕',
+  Jeans: '👖',
+  Jackets: '🧥',
+  Hats: '🧢',
+  Bags: '👜',
+  Sunglasses: '🕶️',
+  Shoes: '👟'
+};
+const CATEGORY_ICONS = { Clothing: '👕', Accessories: '🎒' };
+const iconFor = (scan) =>
+  SUBCATEGORY_ICONS[scan.subcategory] || CATEGORY_ICONS[scan.category] || '🏷️';
 
-  const filteredScans = scans.filter(scan => {
-    const matchesFilter = filter === 'all' || scan.status === filter;
-    const matchesSearch = scan.product.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+const money = (n) =>
+  (parseFloat(n) || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
   });
 
-  const totalScans = scans.length;
-  const successfulScans = scans.filter(s => s.status === 'success').length;
-  const totalValue = scans.reduce((sum, scan) => sum + scan.price, 0);
+const clockTime = (iso) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString();
+};
+
+const timeAgo = (iso) => {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return '';
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+};
+
+export default function NFCScans() {
+  const [scans, setScans] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [todayOnly, setTodayOnly] = useState(false);
+
+  const load = useCallback(async (isInitial = false) => {
+    try {
+      if (isInitial) setLoading(true);
+      const res = await apiClient.get(`/dashboard/scan-history?limit=100&t=${Date.now()}`);
+      if (res.data.success) {
+        setScans(res.data.data.scans || []);
+        setStats(res.data.data.stats || null);
+        setLastUpdated(new Date());
+        setError(null);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load(true);
+    const id = setInterval(() => load(false), REFRESH_SECONDS * 1000);
+    return () => clearInterval(id);
+  }, [load]);
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const filteredScans = scans.filter((s) => {
+    const matchesSearch = s.product.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDay = !todayOnly || new Date(s.scannedAt) >= startOfToday;
+    return matchesSearch && matchesDay;
+  });
+
+  if (loading) {
+    return (
+      <DashboardLayout pageTitle="NFC Scans">
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p>Loading scan history…</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error && !scans.length) {
+    return (
+      <DashboardLayout pageTitle="NFC Scans">
+        <div style={{ padding: '2rem', color: 'var(--color-error)' }}>
+          <p>Could not load scan history: {error}</p>
+          <p style={{ color: 'var(--color-text-secondary)' }}>
+            Check that the backend is running on port 5000.
+          </p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout pageTitle="NFC Scans">
       <div className="nfc-scans-container">
-        {/* HEADER */}
         <div className="scans-header">
           <div className="header-left">
-            <h1>📡 Recent NFC Scans</h1>
-            <p className="subtitle">Live product scanning activity</p>
+            <h1>Recent NFC Scans</h1>
+            <p className="subtitle">
+              {error
+                ? `Live data unavailable: ${error}`
+                : `Live from the database · refreshes every ${REFRESH_SECONDS}s${
+                    lastUpdated ? ` · updated ${lastUpdated.toLocaleTimeString()}` : ''
+                  }`}
+            </p>
           </div>
         </div>
 
-        {/* STATS */}
+        {/* STATS - computed over the same rows the list is drawn from */}
         <div className="scans-stats">
           <div className="stat-card">
             <span className="stat-label">Total Scans</span>
-            <span className="stat-value">{totalScans}</span>
+            <span className="stat-value">{stats?.totalScans ?? 0}</span>
           </div>
           <div className="stat-card">
-            <span className="stat-label">Successful</span>
-            <span className="stat-value">{successfulScans}</span>
+            <span className="stat-label">Today</span>
+            <span className="stat-value">{stats?.scansToday ?? 0}</span>
           </div>
           <div className="stat-card">
-            <span className="stat-label">Total Value</span>
-            <span className="stat-value">₹{totalValue.toLocaleString()}</span>
+            <span className="stat-label">Distinct Products</span>
+            <span className="stat-value">{stats?.uniqueProducts ?? 0}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Scanned Value</span>
+            <span className="stat-value">₹{money(stats?.totalValue)}</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">Avg Price</span>
-            <span className="stat-value">₹{(totalValue / totalScans).toLocaleString()}</span>
+            <span className="stat-value">₹{money(stats?.averagePrice)}</span>
           </div>
         </div>
 
-        {/* FILTERS & SEARCH */}
         <div className="scans-controls">
           <div className="search-box">
             <input
@@ -72,61 +158,65 @@ export default function NFCScans() {
           </div>
           <div className="filter-buttons">
             <button
-              className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
+              className={`filter-btn ${!todayOnly ? 'active' : ''}`}
+              onClick={() => setTodayOnly(false)}
             >
-              All ({totalScans})
+              All ({scans.length})
             </button>
             <button
-              className={`filter-btn ${filter === 'success' ? 'active' : ''}`}
-              onClick={() => setFilter('success')}
+              className={`filter-btn ${todayOnly ? 'active' : ''}`}
+              onClick={() => setTodayOnly(true)}
             >
-              ✓ Success ({successfulScans})
+              Today ({stats?.scansToday ?? 0})
             </button>
           </div>
         </div>
 
-        {/* SCANS LIST */}
         <div className="scans-list">
           {filteredScans.length === 0 ? (
             <div className="no-scans">
-              <p>No scans found</p>
+              <p>
+                {scans.length === 0
+                  ? 'No scans recorded yet. Tap a product on Smart NFC Shopping or NFC Self Checkout.'
+                  : 'No scans match this filter'}
+              </p>
             </div>
           ) : (
             filteredScans.map((scan) => (
-              <div key={scan.id} className={`scan-item ${scan.status}`}>
+              <div key={scan.id} className="scan-item success">
                 <div className="scan-left">
-                  <div className="product-emoji">{scan.emoji}</div>
+                  <div className="product-emoji">{iconFor(scan)}</div>
                   <div className="scan-info">
                     <h3 className="product-name">{scan.product}</h3>
-                    <p className="scan-time">Scanned at {scan.time}</p>
+                    <p className="scan-time">
+                      {clockTime(scan.scannedAt)} · {timeAgo(scan.scannedAt)}
+                      {scan.tagCode ? ` · ${scan.tagCode}` : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="scan-right">
-                  <div className="product-price">₹{scan.price.toLocaleString()}</div>
-                  <span className={`status-badge ${scan.status}`}>
-                    {scan.status === 'success' ? '✓ Added' : 'Pending'}
-                  </span>
+                  <div className="product-price">₹{money(scan.price)}</div>
+                  <span className="status-badge success">✓ Scanned</span>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        {/* ACTIVITY TIMELINE */}
         <div className="activity-section">
           <h2>Activity Timeline</h2>
           <div className="timeline">
-            {filteredScans.slice(0, 5).map((scan, idx) => (
-              <div key={idx} className="timeline-item">
+            {filteredScans.slice(0, 5).map((scan) => (
+              <div key={scan.id} className="timeline-item">
                 <div className="timeline-dot"></div>
                 <div className="timeline-content">
                   <p className="timeline-title">{scan.product}</p>
-                  <p className="timeline-time">{scan.time}</p>
+                  <p className="timeline-time">{clockTime(scan.scannedAt)}</p>
                 </div>
-                <div className="timeline-price">₹{scan.price}</div>
+                <div className="timeline-price">₹{money(scan.price)}</div>
               </div>
             ))}
+            {filteredScans.length === 0 && <p className="no-scans">Nothing to show yet</p>}
           </div>
         </div>
       </div>
