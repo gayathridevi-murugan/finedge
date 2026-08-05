@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Payment, Order } = require('../models');
+const paymentService = require('../services/paymentService');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 // Demo payment verification endpoint
@@ -46,6 +47,11 @@ router.post('/verify-demo', asyncHandler(async (req, res) => {
       transaction_id: transactionId
     });
 
+    // Without this the order is PAID but its items still carry ACTIVE security
+    // tags, and exitSecurityService refuses the exit. Every path that marks an
+    // order paid has to clear them.
+    const tagsCleared = await paymentService.deactivateSecurityTags(order.id);
+
     return res.json({
       success: true,
       message: 'Demo payment verified successfully',
@@ -53,7 +59,8 @@ router.post('/verify-demo', asyncHandler(async (req, res) => {
         payment_id: payment.id,
         order_id: order.id,
         status: 'CAPTURED',
-        transaction_id: transactionId
+        transaction_id: transactionId,
+        security_tags_cleared: tagsCleared
       }
     });
   } else {

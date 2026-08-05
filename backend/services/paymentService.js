@@ -248,18 +248,34 @@ class PaymentService {
       transaction_id: transactionId
     });
 
-    // Deactivate security tags for paid items
+    await this.deactivateSecurityTags(orderId);
+
+    return payment;
+  }
+
+  /**
+   * Clears the security tags for everything in an order.
+   *
+   * exitSecurityService blocks an exit when any item in the order still has an
+   * ACTIVE tag, so this has to run on every path that marks an order PAID.
+   * Extracted from capturePayment because the demo verification route marked
+   * orders paid without it, and those orders were then refused at the gate.
+   */
+  async deactivateSecurityTags(orderId) {
     const orderItems = await OrderItem.findAll({ where: { order_id: orderId } });
+    let cleared = 0;
+
     for (const item of orderItems) {
       const securityTag = await SecurityTag.findOne({
         where: { product_id: item.product_id }
       });
-      if (securityTag) {
+      if (securityTag && securityTag.status !== 'DEACTIVATED') {
         await securityTag.update({ status: 'DEACTIVATED' });
+        cleared++;
       }
     }
 
-    return payment;
+    return cleared;
   }
 
   async failPayment(orderId, errorMessage) {

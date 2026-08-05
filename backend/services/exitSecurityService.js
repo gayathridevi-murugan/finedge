@@ -54,10 +54,14 @@ class ExitSecurityService {
         simulation_note: 'Software simulation - not physical gate'
       });
     } else {
+      // simulation_note has to be reset too. It carries the reason a previous
+      // attempt was blocked, so re-verifying after payment left an approved
+      // record still reading "Reason: Payment not completed".
       await exitVerification.update({
         exit_status: 'APPROVED',
         gate_status: 'GREEN',
-        unpaid_items: JSON.stringify([])
+        unpaid_items: JSON.stringify([]),
+        simulation_note: 'Software simulation - not physical gate'
       });
     }
 

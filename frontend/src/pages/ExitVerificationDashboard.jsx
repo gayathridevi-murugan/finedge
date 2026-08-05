@@ -13,76 +13,65 @@ export default function ExitVerificationDashboard() {
   const [verifyStage, setVerifyStage] = useState('verifying');
   const [isApproved, setIsApproved] = useState(null);
   const [unpaidItems, setUnpaidItems] = useState([]);
+  const [blockReason, setBlockReason] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     const runVerification = async () => {
+      // Nothing to verify without an order. This used to fall through to
+      // Math.random() > 0.3 and approve or block at random.
+      if (!orderId) {
+        if (!cancelled) setVerifyStage('no-order');
+        return;
+      }
+
       try {
-        // Simulate verification delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+        const response = await verifyExit(orderId);
+        if (cancelled) return;
 
-        // Call backend API for actual exit verification
-        if (orderId) {
-          try {
-            const response = await verifyExit(orderId);
-
-            if (response.data.success) {
-              const exitData = response.data.data.exit_verification;
-              const status = exitData.exit_status.toLowerCase();
-              const gate = exitData.gate_status.toLowerCase();
-
-              setIsApproved(status === 'approved');
-
-              if (status === 'approved') {
-                setVerifyStage('approved');
-                setExitStatus('APPROVED', 'GREEN', []);
-              } else {
-                setUnpaidItems(exitData.unpaid_items || []);
-                setVerifyStage('blocked');
-                setExitStatus('BLOCKED', 'RED', exitData.unpaid_items || []);
-              }
-            }
-          } catch (error) {
-            console.warn('Backend exit verification unavailable, using simulated verification');
-            // Fallback to simulated verification
-            const approved = Math.random() > 0.3; // 70% approval rate
-            setIsApproved(approved);
-
-            if (approved) {
-              setVerifyStage('approved');
-              setExitStatus('APPROVED', 'GREEN', []);
-            } else {
-              const selectedUnpaid = cartItems.slice(0, Math.ceil(Math.random() * 2));
-              setUnpaidItems(selectedUnpaid);
-              setVerifyStage('blocked');
-              setExitStatus('BLOCKED', 'RED', selectedUnpaid);
-            }
-          }
-        } else {
-          // No order ID, use simulated verification for demo
-          const approved = Math.random() > 0.3;
-          setIsApproved(approved);
-
-          if (approved) {
-            setVerifyStage('approved');
-            setExitStatus('APPROVED', 'GREEN', []);
-          } else {
-            const selectedUnpaid = cartItems.slice(0, Math.ceil(Math.random() * 2));
-            setUnpaidItems(selectedUnpaid);
-            setVerifyStage('blocked');
-            setExitStatus('BLOCKED', 'RED', selectedUnpaid);
-          }
+        // The endpoint reports success:false for a blocked exit, so the status
+        // has to be read from the payload. Gating on response.data.success left
+        // a blocked exit stuck on the verifying spinner for ever.
+        const exitData = response.data?.data?.exit_verification;
+        if (!exitData?.exit_status) {
+          throw new Error(response.data?.error?.message || 'Verification response was empty');
         }
+
+        const approved = exitData.exit_status.toUpperCase() === 'APPROVED';
+        const items = exitData.unpaid_items || [];
+
+        setIsApproved(approved);
+        setUnpaidItems(items);
+        // simulation_note is "…not physical gate. Reason: <why>"; keep the why.
+        const note = exitData.simulation_note || '';
+        setBlockReason(note.includes('Reason:') ? note.split('Reason:').pop().trim() : null);
+        setVerifyStage(approved ? 'approved' : 'blocked');
+        setExitStatus(
+          approved ? 'APPROVED' : 'BLOCKED',
+          approved ? 'GREEN' : 'RED',
+          approved ? [] : items
+        );
       } catch (error) {
-        console.error('Exit verification error:', error);
-        // Default to approved on error
-        setIsApproved(true);
-        setVerifyStage('approved');
-        setExitStatus('APPROVED', 'GREEN', []);
+        if (cancelled) return;
+        // A gate must never open because a check failed. This previously fell
+        // back to a random verdict, and the outer catch defaulted to approved.
+        console.error('Exit verification failed:', error);
+        setErrorMessage(
+          error.response?.data?.error?.message || error.message || 'Verification unavailable'
+        );
+        setIsApproved(false);
+        setVerifyStage('error');
       }
     };
 
     runVerification();
-  }, [orderId, cartItems, setExitStatus]);
+    return () => { cancelled = true; };
+    // cartItems is intentionally not a dependency - it is a fresh array each
+    // render and would restart verification on every store update.
+  }, [orderId, setExitStatus]);
 
   const handleNewCheckout = () => {
     setCurrentScreen('overview');
@@ -111,6 +100,45 @@ export default function ExitVerificationDashboard() {
               <h1>Verifying Exit...</h1>
               <p>Checking payment status and security</p>
               <p className="verify-info">Please wait while we verify your items</p>
+            </div>
+          )}
+
+          {/* NOTHING TO VERIFY - reached with no order in the session */}
+          {verifyStage === 'no-order' && (
+            <div className="verify-stage verifying">
+              <div className="verification-animation">
+                <div className="scanner-icon">🚪</div>
+              </div>
+              <h1>No Order To Verify</h1>
+              <p className="status-message">
+                The gate checks a completed order. Finish a checkout first, then come back here.
+              </p>
+              <div className="exit-actions">
+                <button className="exit-button primary" onClick={handleNewCheckout}>
+                  Start a Checkout
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* VERIFICATION FAILED - the gate stays shut when the check cannot run */}
+          {verifyStage === 'error' && (
+            <div className="verify-stage blocked">
+              <div className="gate-visual red">
+                <div className="gate-circle">
+                  <div className="warning-icon">⚠</div>
+                </div>
+              </div>
+              <h1 className="status-blocked">VERIFICATION UNAVAILABLE</h1>
+              <p className="status-message">{errorMessage}</p>
+              <p className="verify-info">
+                The gate stays closed when the check cannot be completed. Please call an attendant.
+              </p>
+              <div className="exit-actions">
+                <button className="exit-button primary" onClick={handleNewCheckout}>
+                  Back to Dashboard
+                </button>
+              </div>
             </div>
           )}
 
@@ -160,16 +188,23 @@ export default function ExitVerificationDashboard() {
               <p className="status-message">Unpaid item detected</p>
 
               <div className="unpaid-items">
-                <h3>Unpaid Items</h3>
+                <h3>{unpaidItems.length > 0 ? 'Unpaid Items' : 'Reason'}</h3>
                 {unpaidItems.length > 0 ? (
                   unpaidItems.map((item, idx) => (
                     <div key={idx} className="unpaid-item">
-                      <span className="item-name">{item.name || 'Product'}</span>
-                      <span className="item-price">₹{(item.price || 0).toFixed(2)}</span>
+                      <span className="item-name">
+                        {item.product_name || item.name || 'Product'}
+                        {item.quantity > 1 ? ` × ${item.quantity}` : ''}
+                      </span>
+                      <span className="item-price">
+                        ₹{(parseFloat(item.price) || 0).toFixed(2)}
+                      </span>
                     </div>
                   ))
                 ) : (
-                  <p className="no-items">Unable to determine unpaid items</p>
+                  // A block can be order-wide rather than per item, e.g. payment
+                  // not completed. Showing the reason beats "unable to determine".
+                  <p className="no-items">{blockReason || 'No itemised detail returned'}</p>
                 )}
               </div>
 
