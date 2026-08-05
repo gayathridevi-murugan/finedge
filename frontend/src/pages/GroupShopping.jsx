@@ -82,10 +82,15 @@ export default function GroupShopping() {
   // ============================================
   // STEP 1: ADD SHOPPERS WITH NAMES
   // ============================================
+  // Functional update so the auto-generated name and the append both work off
+  // the latest list. Reading `shoppers` from the closure meant two quick taps
+  // on + both computed from the same array and one shopper was dropped.
   const handleAddShopper = () => {
-    const name = newShopperName.trim() || `Person ${shoppers.length + 1}`;
-    const newShoppers = [...shoppers, { name: name, status: 'Waiting' }];
-    setShoppers(newShoppers);
+    const typed = newShopperName.trim();
+    setShoppers((prev) => [
+      ...prev,
+      { name: typed || `Person ${prev.length + 1}`, status: 'Waiting' }
+    ]);
     setNewShopperName('');
   };
 
